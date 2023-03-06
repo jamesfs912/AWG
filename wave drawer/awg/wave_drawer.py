@@ -119,7 +119,7 @@ class WaveformDrawer:
         return y_resampled
 
 
-waveform_drawer = WaveformDrawer()
-waveform_drawer.draw_waveform()
-resampled_waveform = waveform_drawer.resample_waveform()
-
+if __name__ == '__main__':
+    waveform_drawer = WaveformDrawer()
+    waveform_drawer.draw_waveform()
+    resampled_waveform = waveform_drawer.resample_waveform()
