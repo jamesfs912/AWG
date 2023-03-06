@@ -25,9 +25,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.plot_widget = pg.PlotWidget()
         self.plot_data = self.plot_widget.plot(pen='b')
         self.freq_label = QtWidgets.QLabel(f'Frequency (Hz): {self.freq}')
-        self.freq_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal, self)
-        self.freq_slider.setRange(1, 20000)
-        self.freq_slider.setValue(self.freq)
+        self.freq_textbox = QtWidgets.QLineEdit(str(self.freq))
         self.amp_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal, self)
         self.amp_label = QtWidgets.QLabel(f'Amplitude: {self.amplitude}')
         self.amp_slider.setRange(-5, 5)
@@ -49,7 +47,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         grid_layout = QtWidgets.QGridLayout()
         grid_layout.addWidget(self.plot_widget, 0, 0, 4, 4)
         grid_layout.addWidget(self.freq_label, 4, 0)
-        grid_layout.addWidget(self.freq_slider, 4, 1)
+        grid_layout.addWidget(self.freq_textbox, 4, 1)
         grid_layout.addWidget(self.amp_label, 5, 0)
         grid_layout.addWidget(self.amp_slider, 5, 1)
         grid_layout.addWidget(self.offset_label, 6, 0)
@@ -65,7 +63,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.setLayout(grid_layout)
 
         # Connect signals to slots
-        self.freq_slider.valueChanged.connect(self.set_frequency)
+        self.freq_textbox.textChanged.connect(self.set_frequency)
         self.amp_slider.valueChanged.connect(self.set_amplitude)
         self.offset_slider.valueChanged.connect(self.set_offset)
         self.sine_button.clicked.connect(self.set_sine)
@@ -76,8 +74,11 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.arb_file_button.clicked.connect(self.select_arbitrary_file)
         self.generate_button.clicked.connect(self.generate_waveform)
 
-    def set_frequency(self, value):
-        self.freq = value
+    def set_frequency(self, text):
+        if text.isnumeric():
+            self.freq = int(text)
+        else:
+            self.freq = 0
         self.freq_label.setText(f'Frequency (Hz): {self.freq}')
 
     def set_amplitude(self, value):
