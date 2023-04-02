@@ -1,4 +1,4 @@
-from wave_drawer import WaveDrawer
+from AWG.wave_drawer import WaveDrawer
 import tkinter as tk
 
 
