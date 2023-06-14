@@ -439,7 +439,6 @@ class WaveformGenerator(QtWidgets.QWidget):
             dummy = 1
         return value[:-1] * multiplier
 
-    #print(conversion('1k', 0,0))
 
     def toggleSplit(self):
         if(self.toggled == 0):
