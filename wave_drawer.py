@@ -122,4 +122,3 @@ class WaveformDrawer:
 waveform_drawer = WaveformDrawer()
 waveform_drawer.draw_waveform()
 resampled_waveform = waveform_drawer.resample_waveform()
-
