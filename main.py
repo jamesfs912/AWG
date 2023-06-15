@@ -323,8 +323,7 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.plot_data.setData(t, y, pen='y')
         else:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
-        self.ampSelect.setText('')
-        self.freqSelect.setText('')
+ 
 
     def generate_c2_waveform(self):
 
@@ -379,22 +378,30 @@ class WaveformGenerator(QtWidgets.QWidget):
         try:
             if isinstance(value, int): #This only passes if the value has not been changed
                 return value
+            
+            # Suffix conversion
             if(len(value) == 1):
-                return int(value)
+                if(amplitude):
+                    if (int(value) >= self.ampMin) and (int(value) <= self.ampMax):
+                        return  int(value)
+                    self.ThrowError("Amplitude must be between {0} and {1}".format(self.ampMin, self.ampMax))
+                    return 0
+                else:
+                    return int(value)
             elif value[-1] in suffixes:
                 multiplier = suffixes[value[-1]]
                 answer = multiplier * int(value[:-1])
             else:
                 answer = int(value)
-            if (amplitude):
-                if (int(value) >= self.ampMin) and (int(value) <= self.ampMax):
-                    print("Valid Amplitude")
-                    return int(answer)
+
+            #Check if values are permitted
+            if amplitude:
+                if ((len(value) == 1) and int(value) >= self.ampMin) and (int(value) <= self.ampMax):
+                    return  int(value)
                 self.ThrowError("Amplitude must be between {0} and {1}".format(self.ampMin, self.ampMax))
-            elif (int(value[:-1]) >= self.freqMin) and (int(value[:-1]) <= self.freqMax):
-                print("Valid frequency")
-                return int(answer)
-            else:
+            if not amplitude:
+                if (int(value[:-1]) >= self.freqMin) and (int(value[:-1]) <= self.freqMax):
+                    return int(answer)
                 self.ThrowError("Frequency must be between {0}Hz and {1}MHz.".format(self.freqMin, int(self.freqMax/1000000)))
             return 0
         except:
