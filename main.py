@@ -284,41 +284,21 @@ class WaveformGenerator(QtWidgets.QWidget):
     def generate_waveform(self):
 
         # Amplitude verification
-        try:
-            self.c1_amplitude = int(self.c1_amplitude)
-            if (self.c1_amplitude >= self.ampMin) and (self.c1_amplitude <= self.ampMax):
-                self.ampSelect.setText("{0}".format(self.c1_amplitude))
-                self.amp_label.setText(f'Amplitude: {self.c1_amplitude}')
-            else:
-                self.ThrowError("Amplitude must be between {0} and {1}".format(self.ampMin, self.ampMax))
-                return 0
-        except Exception:
-            self.ThrowError("Amplitude must contain and only contain integers.")
-            return 0
-        
+        self.c1_amplitude = self.conversion(self.c1_amplitude, True)
+        self.amp_label.setText(f'Amplitude: {self.c1_amplitude}')
+
         # Frequency verification
-        try:
-            self.c1_freq = int(self.c1_freq)
-            if (self.c1_freq >= self.freqMin) and (self.c1_freq <= self.freqMax):
-                 self.freqSelect.setText("{0}".format(self.c1_freq))
-                 self.freq_label.setText(f'Frequency (Hz): {self.c1_freq}')
-            else:
-                self.ThrowError("Frequency must be between {0}Hz and {1}MHz.".format(self.freqMin, int(self.freqMax/1000000)))
-                self.freqSelect.setText("")
-                return 0
-        except Exception: 
-            self.ThrowError("Frequency must only contain integers.")
-            self.freqSelect.setText("")
-            return 0
-        
-        
+        self.c1_freq = self.conversion(self.c1_freq, False)
+        self.freq_label.setText(f'Frequency (Hz): {self.c1_freq}')
         
         # Updating Data Visuals
         self.offset_label.setText(f'Offset voltage: {self.c1_offset}')
         
         self.c1_timeRange = pow(10, -(len(str(self.c1_freq))-1))
-        self.c1_freq = int(self.c1_freq)
-        self.c1_amplitude = int(self.c1_amplitude)
+        print("Generate")
+        print(type(self.c1_amplitude))
+        print(type(self.c1_freq))
+        print("Generate end.")
         if self.waveform_type == 'sine':
             t = np.linspace(0, self.c1_timeRange, self.c1_fs, endpoint=False)
             print(type(self.c1_freq))
@@ -343,46 +323,30 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.plot_data.setData(t, y, pen='y')
         else:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
-
+        self.ampSelect.setText('')
+        self.freqSelect.setText('')
 
     def generate_c2_waveform(self):
-        
+
         # Amplitude verification
-        try:
-            self.c2_amplitude = int(self.c2_amplitude)
-            if(self.c2_amplitude >= self.ampMin) and (self.c2_amplitude <= self.ampMax):
-                self.c2_ampSelect.setText("{0}".format(self.c2_amplitude))
-                self.c2_amp_label.setText(f'Amplitude: {self.c2_amplitude}')
-            else:
-                self.ThrowError("Amplitude must be between {0} and {1}".format(self.ampMin, self.ampMax))
-                self.c2_ampSelect.setText("")
-                return 0
-        except Exception:
-            self.ThrowError("Amplitude must contain and only contain integers.")
-            self.c2_ampSelect.setText("")
-            return 0
+        self.c2_amplitude = (self.conversion(self.c2_amplitude, True))
+        self.c2_amp_label.setText(f'Amplitude: {self.c2_amplitude}')
         
+
         # Frequency verification
-        try:
-            self.c2_freq = int(self.c2_freq)
-            if (self.c2_freq >= self.freqMin) and (self.c2_freq <= self.freqMax):
-                 self.freqSelect.setText("{0}".format(self.c2_freq))
-                 self.freq_label.setText(f'Frequency (Hz): {self.c2_freq}')
-            else:
-                self.ThrowError("Frequency must be between {0}Hz and {1}MHz.".format(self.freqMin, int(self.freqMax/1000000)))
-                self.freqSelect.setText("")
-                return 0
-        except Exception: 
-            self.ThrowError("Frequency must only contain integers.")
-            self.c2_freqSelect.setText("")
-            return 0
+        self.c2_freq = self.conversion(self.c2_freq, False)
+        self.c2_freq_label.setText(f'Frequency (Hz): {self.c2_freq}')
         
         # Updating Data Visuals
         self.offset_label.setText(f'Offset voltage: {self.c2_offset}')
         
         self.c2_timeRange = pow(10, -(len(str(self.c2_freq))-1))
-        self.c2_freq = int(self.c2_freq)
-        self.c2_amplitude = int(self.c2_amplitude)
+
+        # I have 0 idea why I have to cast amplitude to an int AGAIN for it to stay as an int
+        print("Generate")
+        print(type(self.c2_amplitude))
+        print(type(self.c2_freq))
+        print("Generate end.")
         if self.c2_waveform_type == 'sine':
             t = np.linspace(0, self.c2_timeRange, self.c2_fs, endpoint=False)
             y = self.c2_amplitude * np.sin(2 * np.pi * self.c2_freq * t + np.deg2rad(self.c2_phase))+self.c2_offset
@@ -405,39 +369,38 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.c2_plot_data.setData(t, y, pen='b')
         else:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
+        #self.c2_ampSelect.setText('')
+        #self.c2_freqSelect.setText('')
 
-    def save_waveform(self):
-        file_dialog = QtGui.QFileDialog()
-        file_dialog.setDefaultSuffix('txt')
-        file_dialog.setNameFilter('Text files (*.txt)')
-        if file_dialog.exec_():
-            file_path = file_dialog.selectedFiles()[0]
-            t, y = self.plot_data.getData()
-            np.savetxt(file_path, y)
 
-    def reset_waveform(self):
-        self.freq_slider.setValue(10)
-        self.amp_slider.setValue(1)
-        self.phase_slider.setValue(0)
-        self.sine_button.setChecked(True)
-        self.arb_file_label.setText('No file selected')
-        self.arbitrary_waveform = None
-        self.plot_data.clear()
 
-    def ThrowError(self, message):
-        self.dummy = 1
-        self.errorBox.setText(message)
-        self.errorBox.exec()
-
-    def conversion(value, wave, amplitude):
-        multiplier =  1
-        suffixes = {'K': 1000, 'k': 1000, 'M': 1000000, 'm': 100000}
-        if value[-1] in suffixes:
-            multiplier = value[-1]
-        elif not isinstance(value[-1], int):
-            #throw
-            dummy = 1
-        return value[:-1] * multiplier
+    def conversion(self, value, amplitude):
+        suffixes = {'K': 1000, 'k': 1000, 'M': 1000000, 'm': 1000000}
+        try:
+            if isinstance(value, int): #This only passes if the value has not been changed
+                return value
+            if(len(value) == 1):
+                return int(value)
+            elif value[-1] in suffixes:
+                multiplier = suffixes[value[-1]]
+                answer = multiplier * int(value[:-1])
+            else:
+                answer = int(value)
+            if (amplitude):
+                if (int(value) >= self.ampMin) and (int(value) <= self.ampMax):
+                    print("Valid Amplitude")
+                    return int(answer)
+                self.ThrowError("Amplitude must be between {0} and {1}".format(self.ampMin, self.ampMax))
+            elif (int(value[:-1]) >= self.freqMin) and (int(value[:-1]) <= self.freqMax):
+                print("Valid frequency")
+                return int(answer)
+            else:
+                self.ThrowError("Frequency must be between {0}Hz and {1}MHz.".format(self.freqMin, int(self.freqMax/1000000)))
+            return 0
+        except:
+            self.ThrowError("Invalid input(s).")
+            return 0
+        
 
 
     def toggleSplit(self):
@@ -478,7 +441,28 @@ class WaveformGenerator(QtWidgets.QWidget):
             ser.write(b'\x03') #End handshake packet
         except serial.SerialException:
             print('Failed to communicate with the device')
+    
+    def save_waveform(self):
+        file_dialog = QtGui.QFileDialog()
+        file_dialog.setDefaultSuffix('txt')
+        file_dialog.setNameFilter('Text files (*.txt)')
+        if file_dialog.exec_():
+            file_path = file_dialog.selectedFiles()[0]
+            t, y = self.plot_data.getData()
+            np.savetxt(file_path, y)
 
+    def reset_waveform(self):
+        self.freq_slider.setValue(10)
+        self.amp_slider.setValue(1)
+        self.phase_slider.setValue(0)
+        self.sine_button.setChecked(True)
+        self.arb_file_label.setText('No file selected')
+        self.arbitrary_waveform = None
+        self.plot_data.clear()
+
+    def ThrowError(self, message):
+        self.errorBox.setText(message)
+        self.errorBox.exec()
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     waveform_generator = WaveformGenerator()
