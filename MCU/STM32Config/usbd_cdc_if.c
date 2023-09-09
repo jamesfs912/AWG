@@ -21,6 +21,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
 
+
 /* USER CODE BEGIN INCLUDE */
 
 /* USER CODE END INCLUDE */
@@ -35,6 +36,7 @@ extern uint8_t buffer[64];
 extern uint16_t SampleSize;
 extern uint16_t ARR_Value;
 extern uint32_t LUT[256];
+uint8_t packet_id = 0;
 
 /* USER CODE END PV */
 
@@ -262,48 +264,63 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
   */
 
 
-
-
-
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
-  // Clear buffer
-  memset(buffer, '\0', 64);
+  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
+  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 
-  // Copy the data to the buffer
+  // Clear buffer
+  memset(buffer, 0, 64); // Set buffer size to 64 bytes
+
+  // Copy the received data to the buffer
   uint8_t len = (uint8_t)*Len;
+  if (len > 64) {
+    // Handle buffer overflow error
+    return USBD_FAIL;
+  }
   memcpy(buffer, Buf, len);
 
-  // Extract ARR_Value and SampleSize from the buffer
-  SampleSize = buffer[0] | (buffer[1] << 8);
-  ARR_Value = buffer[2] | (buffer[3] << 8);
+  // Extract the packet identifier from the beginning of the buffer
+  uint16_t packet_id = buffer[0] | (buffer[1] << 8);
 
-  uint16_t i = 0;
-  uint16_t lut_offset = 4;
+  if (packet_id == 0x0101) {  // Packet 1: Identifier, Sample Size, and ARR Value
+    SampleSize = buffer[2] | (buffer[3] << 8);
+    ARR_Value = buffer[4] | (buffer[5] << 8);
 
-  while (i < SampleSize)
-  {
-    LUT[i] = buffer[lut_offset] | (buffer[lut_offset + 1] << 8);
-    lut_offset += 2; // Move to the next LUT element
-    i++; // Increment the LUT index
+    // Clear the buffer
+    memset(buffer, 0, 64); // Set buffer size to 64 bytes
+
+    // Send the acknowledgment response
+    uint16_t response_data = 5678;
+    uint8_t response_bytes[2];
+    response_bytes[0] = response_data & 0xFF;
+    response_bytes[1] = (response_data >> 8) & 0xFF;
+    CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
+  }
+  else if (packet_id == 0x0202) {  // Packet 2 or 3: Identifier and LUT Values
+    uint16_t i = 0;
+    uint16_t lut_offset = 2; // Start reading from the third byte
+
+    while (i < SampleSize) { // Accumulate LUT values until 256 values
+      LUT[i] = buffer[lut_offset] | (buffer[lut_offset + 1] << 8);
+      lut_offset += 2; // Move to the next LUT element
+      i++; // Increment the LUT index
+
+    }
+
+    // Clear the buffer
+    memset(buffer, 0, 64); // Set buffer size to 64 bytes
+
+    // Send the acknowledgment response
+    uint16_t response_data = 5678;
+    uint8_t response_bytes[2];
+    response_bytes[0] = response_data & 0xFF;
+    response_bytes[1] = (response_data >> 8) & 0xFF;
+    CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
   }
 
-  // Send a response back to Python (for verification)
-  uint16_t response_data = 5678;
-  uint8_t response_bytes[2];
-  response_bytes[0] = response_data & 0xFF;
-  response_bytes[1] = (response_data >> 8) & 0xFF;
-  CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
-
-  memset(buffer, '\0', sizeof(buffer));
-
-
-
-  return (USBD_OK);
+  return USBD_OK;
 }
-
-
-
 
 
 
