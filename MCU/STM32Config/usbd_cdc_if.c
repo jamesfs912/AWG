@@ -278,11 +278,11 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
     USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
     USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 
-    // Extract the packet identifier from the beginning of the buffer
+    // Extract the packet identifier 
     struct Packet1* received_packet1 = (struct Packet1*)Buf;
     uint16_t packet_id = received_packet1->packet_id;
 
-    if (packet_id == 0x0101) {  // Packet 1: Identifier, Sample Size, and ARR Value
+    if (packet_id == 0x0101) {  // Packet 1: Metadata
         SampleSize = received_packet1->sample_size;
         ARR_Value = received_packet1->arr_value;
 
@@ -296,10 +296,10 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
         response_bytes[1] = (response_data >> 8) & 0xFF;
         CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
     }
-    else if (packet_id == 0x0202) {  // Packet 2: Identifier and LUT Values
+    else if (packet_id == 0x0202) {  // Packet 2: LUT 
         struct Packet2* received_packet2 = (struct Packet2*)Buf;
 
-        // Process lut_values as needed
+        // Process lut_values
         for (int i = 0; i < 30; i++) {
             LUT[i] = received_packet2->lut_values[i];
         }
