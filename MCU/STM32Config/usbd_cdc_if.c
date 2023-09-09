@@ -55,7 +55,16 @@ uint8_t packet_id = 0;
   */
 
 /* USER CODE BEGIN PRIVATE_TYPES */
+struct Packet1 {
+    uint16_t packet_id;
+    uint16_t sample_size;
+    uint16_t arr_value;
+};
 
+struct Packet2 {
+    uint16_t packet_id;
+    uint16_t lut_values[30];
+};
 /* USER CODE END PRIVATE_TYPES */
 
 /**
@@ -266,60 +275,47 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
-  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
-  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+    USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
+    USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 
-  // Clear buffer
-  memset(buffer, 0, 64); // Set buffer size to 64 bytes
+    // Extract the packet identifier from the beginning of the buffer
+    struct Packet1* received_packet1 = (struct Packet1*)Buf;
+    uint16_t packet_id = received_packet1->packet_id;
 
-  // Copy the received data to the buffer
-  uint8_t len = (uint8_t)*Len;
-  if (len > 64) {
-    // Handle buffer overflow error
-    return USBD_FAIL;
-  }
-  memcpy(buffer, Buf, len);
+    if (packet_id == 0x0101) {  // Packet 1: Identifier, Sample Size, and ARR Value
+        SampleSize = received_packet1->sample_size;
+        ARR_Value = received_packet1->arr_value;
 
-  // Extract the packet identifier from the beginning of the buffer
-  uint16_t packet_id = buffer[0] | (buffer[1] << 8);
+        // Clear the buffer
+        memset(Buf, 0, 64);
 
-  if (packet_id == 0x0101) {  // Packet 1: Identifier, Sample Size, and ARR Value
-    SampleSize = buffer[2] | (buffer[3] << 8);
-    ARR_Value = buffer[4] | (buffer[5] << 8);
+        // Send the acknowledgment response
+        uint16_t response_data = 5678;
+        uint8_t response_bytes[2];
+        response_bytes[0] = response_data & 0xFF;
+        response_bytes[1] = (response_data >> 8) & 0xFF;
+        CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
+    }
+    else if (packet_id == 0x0202) {  // Packet 2: Identifier and LUT Values
+        struct Packet2* received_packet2 = (struct Packet2*)Buf;
 
-    // Clear the buffer
-    memset(buffer, 0, 64); // Set buffer size to 64 bytes
+        // Process lut_values as needed
+        for (int i = 0; i < 30; i++) {
+            LUT[i] = received_packet2->lut_values[i];
+        }
 
-    // Send the acknowledgment response
-    uint16_t response_data = 5678;
-    uint8_t response_bytes[2];
-    response_bytes[0] = response_data & 0xFF;
-    response_bytes[1] = (response_data >> 8) & 0xFF;
-    CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
-  }
-  else if (packet_id == 0x0202) {  // Packet 2 or 3: Identifier and LUT Values
-    uint16_t i = 0;
-    uint16_t lut_offset = 2; // Start reading from the third byte
+        // Clear the buffer
+        memset(Buf, 0, 64);
 
-    while (i < SampleSize) { // Accumulate LUT values until 256 values
-      LUT[i] = buffer[lut_offset] | (buffer[lut_offset + 1] << 8);
-      lut_offset += 2; // Move to the next LUT element
-      i++; // Increment the LUT index
-
+        // Send the acknowledgment response
+        uint16_t response_data = 5678;
+        uint8_t response_bytes[2];
+        response_bytes[0] = response_data & 0xFF;
+        response_bytes[1] = (response_data >> 8) & 0xFF;
+        CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
     }
 
-    // Clear the buffer
-    memset(buffer, 0, 64); // Set buffer size to 64 bytes
-
-    // Send the acknowledgment response
-    uint16_t response_data = 5678;
-    uint8_t response_bytes[2];
-    response_bytes[0] = response_data & 0xFF;
-    response_bytes[1] = (response_data >> 8) & 0xFF;
-    CDC_Transmit_FS(response_bytes, sizeof(response_bytes));
-  }
-
-  return USBD_OK;
+    return USBD_OK;
 }
 
 
