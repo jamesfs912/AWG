@@ -2,6 +2,7 @@ import importlib
 import subprocess
 import sys 
 
+"""
 def download_and_import(package_names):
     for package_name in package_names:
         try:
@@ -16,6 +17,7 @@ def download_and_import(package_names):
 
 required_packages = ['numpy', 'PyQt6', 'PyQt6.QtWidgets', 'pyqtgraph',  'serial']
 imported_packages = download_and_import(required_packages)
+"""
 
 import subprocess
 import serial
@@ -38,6 +40,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.setWindowTitle('Waveform Generator')
         #test 
         grid_layout = QtWidgets.QGridLayout()
+
         # Initialize variables
         self.c1_fs = 1000
         self.c1_freq = 1
@@ -49,6 +52,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.waveform_type = 'sine'
         self.arbitrary_waveform = None
         self.toggled = 0
+
         #initialize default channel 2
         self.c2_fs = 1000
         self.c2_freq = 1
@@ -63,6 +67,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         # Create GUI elements
         self.plot_widget = pg.PlotWidget()
         self.plot_widget2 = pg.PlotWidget()
+        self.plot_widget.setMouseEnabled(x=False, y=False)
+        self.plot_widget2.setMouseEnabled(x=False, y=False)
         self.plot_data = self.plot_widget.plot(pen='y')
         self.c2_plot_data = self.plot_widget2.plot(pen='b')
 
@@ -110,7 +116,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_arb_file_button = QtWidgets.QPushButton('Select file')
         self.c2_generate_button = QtWidgets.QPushButton('Generate')
 
-        self.toggle_button = QtWidgets.QPushButton('Split waveforms')
+        #self.toggle_button = QtWidgets.QPushButton('Split waveforms')
         #ErrorBox creation
         self.errorBox = QMessageBox()
 
@@ -180,7 +186,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.arb_file_button.clicked.connect(self.select_arbitrary_file)
         self.generate_button.clicked.connect(self.generate_waveform)
 
-        self.toggle_button.clicked.connect(self.toggleSplit)
+        #self.toggle_button.clicked.connect(self.toggleSplit)
 
         self.c2_freqSelect.textChanged.connect(self.set_c2_frequency)
         self.c2_ampSelect.textChanged.connect(self.set_c2_amplitude)
@@ -193,32 +199,36 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_arb_file_button.clicked.connect(self.select_c2_arbitrary_file)
         self.c2_generate_button.clicked.connect(self.generate_c2_waveform)
 
-
-
+    
+    #The following functions set the frequency values based on the user input
     def set_frequency(self, value):
         self.c1_freq = value
 
     def set_c2_frequency(self, value):
         self.c2_freq = value
 
+    #The following functions set the amplitude values based on the user input
     def set_amplitude(self, value):
         self.c1_amplitude = value
 
     def set_c2_amplitude(self, value):
         self.c2_amplitude = value
 
+    # Need to verify with James what this is for
     def parser(self,value):
         self.dummy = 1
 
     def c2_parser(self,value):
         self.c2_dummy = 1
     
+    # The following instructions set the offet values based on the user input. Check with James if we need to do calculations on our end
     def set_offset(self, value):
         self.c1_offset = value
 
     def set_c2_offset(self, value):
         self.c2_offset = value
 
+    # The following instructions set the non-AWG wave type
     def set_sine(self):
         self.waveform_type = 'sine'
 
@@ -243,12 +253,14 @@ class WaveformGenerator(QtWidgets.QWidget):
     def set_c2_sawtooth(self):
         self.c2_waveform_type = 'sawtooth'
 
+
     def set_arbitrary(self):
         self.waveform_type = 'arbitrary'
 
     def set_c2_arbitrary(self):
         self.c2_waveform_type = 'arbitrary'
 
+    # Takes the user inputted CSV files and loads them as the current waveform
     def select_arbitrary_file(self):
         file_dialog = QtWidgets.QFileDialog()
         file_dialog.setNameFilter('csv files (*.csv)')
@@ -257,6 +269,7 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.arb_file_label.setText(file_path)
             self.arbitrary_waveform = np.loadtxt(file_path)
 
+    # Takes the user inputted CSV files and loads them as the current waveform
     def select_c2_arbitrary_file(self):
         file_dialog = QtWidgets.QFileDialog()
         file_dialog.setNameFilter('csv files (*.csv)')
@@ -265,6 +278,7 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.c2_arb_file_label.setText(file_path)
             self.c2_arbitrary_waveform = np.loadtxt(file_path)
 
+    # Generates the waveform from the 
     def load_arbitrary_waveform(self):
         try:
             # Read the CSV file and update the waveform data
@@ -273,6 +287,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         except OSError:
             pg.QtGui.QMessageBox.warning(self, 'Error', 'Failed to read arbitrary waveform data')
 
+    # Generates the waveform from the file saved by the user. Note to Vik: You might have to change the filename to not conflict with c1 and c2
     def load_c2_arbitrary_waveform(self):
         try:
             # Read the CSV file and update the waveform data
@@ -281,8 +296,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         except OSError:
             pg.QtGui.QMessageBox.warning(self, 'Error', 'Failed to read arbitrary waveform data')
 
+    # Generates the first waveform based on the user inputs
     def generate_waveform(self):
-
         # Amplitude verification
         self.c1_amplitude = self.conversion(self.c1_amplitude, True)
         self.amp_label.setText(f'Amplitude: {self.c1_amplitude}')
@@ -294,11 +309,15 @@ class WaveformGenerator(QtWidgets.QWidget):
         # Updating Data Visuals
         self.offset_label.setText(f'Offset voltage: {self.c1_offset}')
         
+        # Sets the time base to always display at most 10 cycles.
         self.c1_timeRange = pow(10, -(len(str(self.c1_freq))-1))
-        print("Generate")
-        print(type(self.c1_amplitude))
-        print(type(self.c1_freq))
-        print("Generate end.")
+
+        #print("Generate")
+        #print(type(self.c1_amplitude))
+        #print(type(self.c1_freq))
+        #print("Generate end.")
+
+        #Different waveform generations based on waveform type
         if self.waveform_type == 'sine':
             t = np.linspace(0, self.c1_timeRange, self.c1_fs, endpoint=False)
             print(type(self.c1_freq))
@@ -324,7 +343,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         else:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
  
-
+     # Generates the second waveform based on the user inputs
     def generate_c2_waveform(self):
 
         # Amplitude verification
@@ -339,13 +358,14 @@ class WaveformGenerator(QtWidgets.QWidget):
         # Updating Data Visuals
         self.offset_label.setText(f'Offset voltage: {self.c2_offset}')
         
+        # Sets the time base to always display at most 10 cycles.
         self.c2_timeRange = pow(10, -(len(str(self.c2_freq))-1))
 
         # I have 0 idea why I have to cast amplitude to an int AGAIN for it to stay as an int
         print("Generate")
-        print(type(self.c2_amplitude))
-        print(type(self.c2_freq))
-        print("Generate end.")
+        #print(type(self.c2_amplitude))
+        #print(type(self.c2_freq))
+        #print("Generate end.")
         if self.c2_waveform_type == 'sine':
             t = np.linspace(0, self.c2_timeRange, self.c2_fs, endpoint=False)
             y = self.c2_amplitude * np.sin(2 * np.pi * self.c2_freq * t + np.deg2rad(self.c2_phase))+self.c2_offset
@@ -372,7 +392,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         #self.c2_freqSelect.setText('')
 
 
-
+    # Checks if the user inputted an amplitude value with a suffix and converts it accordingly, also checks for legal values.
     def conversion(self, value, amplitude):
         suffixes = {'K': 1000, 'k': 1000, 'M': 1000000, 'm': 1000000}
         try:
@@ -408,23 +428,10 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.ThrowError("Invalid input(s).")
             return 0
         
-
-
-    def toggleSplit(self):
-        if(self.toggled == 0):
-            #self.plot_widget.removeItem(self.c2_plot_data)
-            grid_layout.removeWidget(self.plot_widget)
-            #grid_layout.addWidget(self.plot_widget, 0, 0, 8, 4)
-            grid_layout.update()
-            #self.plot_widget2 = pg.PlotWidget()
-            #self.addWidget(self.plot_widget, 0, 0, 17, 4)
-            #self.addWidget()
-            #grid_layout.addWidget(self.plot_widget, 0, 0, 17, 4)
             
-    def compressWave(self,signal):
-        self.dummy = 1
 
-    #This function sends the entire array, no data loss. Handshake marker included for each element
+
+    # Transfers the data needed for the MCU from the GUI.
     def  transferWave(self, signal,  ser, samplesize):
         try:
             # Convert the frequency value to a byte string and send it over serial port
@@ -449,6 +456,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         except serial.SerialException:
             print('Failed to communicate with the device')
     
+    #Saves the waveform drawn by the user.
     def save_waveform(self):
         file_dialog = QtGui.QFileDialog()
         file_dialog.setDefaultSuffix('txt')
@@ -458,6 +466,7 @@ class WaveformGenerator(QtWidgets.QWidget):
             t, y = self.plot_data.getData()
             np.savetxt(file_path, y)
 
+    # Resets the waveform to default settings as the first opened by the user.
     def reset_waveform(self):
         self.freq_slider.setValue(10)
         self.amp_slider.setValue(1)
@@ -466,6 +475,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.arb_file_label.setText('No file selected')
         self.arbitrary_waveform = None
         self.plot_data.clear()
+        i = 0
 
     def ThrowError(self, message):
         self.errorBox.setText(message)
