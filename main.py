@@ -356,7 +356,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_freq_label.setText(f'Frequency (Hz): {self.c2_freq}')
         
         # Updating Data Visuals
-        self.offset_label.setText(f'Offset voltage: {self.c2_offset}')
+        self.c2_offset_label.setText(f'Offset voltage: {self.c2_offset}')
         
         # Sets the time base to always display at most 10 cycles.
         self.c2_timeRange = pow(10, -(len(str(self.c2_freq))-1))
