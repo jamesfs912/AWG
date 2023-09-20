@@ -47,29 +47,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         #test 
         grid_layout = QtWidgets.QGridLayout()
 
-        # Initialize variables
-        self.c1_fs = 1000
-        self.c1_freq = 1
-        self.c1_amplitude = 1
-        self.c1_phase = 0
-        self.c1_offset = 0
-        self.c1_timeRange = 1
-        self.dummy = 0
-        self.waveform_type = 'sine'
-        self.arbitrary_waveform = None
-        self.toggled = 0
-
-        #initialize default channel 2
-        self.c2_fs = 1000
-        self.c2_freq = 1
-        self.c2_amplitude = 1
-        self.c2_phase = 0
-        self.c2_offset = 0
-        self.c2_timeRange = 1
-        self.c2_dummy = 0
-        self.c2_waveform_type = 'sine'
-        self.c2_arbitrary_waveform = None
-
         # Create GUI elements
         self.plot_widget = pg.PlotWidget()
         self.plot_widget2 = pg.PlotWidget()
@@ -78,6 +55,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.plot_data = self.plot_widget.plot(pen='y')
         self.c2_plot_data = self.plot_widget2.plot(pen='b')
 
+        self.init_values()
         #initialize channel 1 inputs
         self.c1_label = QtWidgets.QLabel(f'Channel 1')
         self.freq_label = QtWidgets.QLabel(f'Frequency (Hz): {self.c1_freq}')
@@ -120,16 +98,9 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_arb_file_button = QtWidgets.QPushButton('Select file')
         self.c2_generate_button = QtWidgets.QPushButton('Generate')
 
-        #self.init_buttons_2()
         self.errorBox = QMessageBox()
 
-        #Hardware restraints
-        self.freqMin = 0
-        self.freqMax = 100000
-        self.ampMin = 0
-        self.ampMax = 5
-        self.offsetMin = -5
-        self.offsetMax = 5
+
 
         # Create layout
         grid_layout = QtWidgets.QGridLayout()
@@ -203,9 +174,99 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_arb_file_button.clicked.connect(self.select_c2_arbitrary_file)
         self.c2_generate_button.clicked.connect(self.generate_c2_waveform)
 
+    def init_values(self):
+        # Initialize variables
+        self.c1_fs = 1000
+        self.c1_freq = 1
+        self.c1_amplitude = 1
+        self.c1_phase = 0
+        self.c1_offset = 0
+        self.c1_timeRange = 1
+        self.dummy = 0
+        self.waveform_type = 'sine'
+        self.arbitrary_waveform = None
+        self.toggled = 0
+
+        #initialize default channel 2
+        self.c2_fs = 1000
+        self.c2_freq = 1
+        self.c2_amplitude = 1
+        self.c2_phase = 0
+        self.c2_offset = 0
+        self.c2_timeRange = 1
+        self.c2_dummy = 0
+        self.c2_waveform_type = 'sine'
+        self.c2_arbitrary_waveform = None
+
+    def init_restraints(self):
+        #Hardware restraints
+        self.freqMin = 0
+        self.freqMax = 100000
+        self.ampMin = 0
+        self.ampMax = 5
+        self.offsetMin = -5
+        self.offsetMax = 5
 
     def init_layout(self):
         i = 0
+
+    
+    def init_buttons(self):
+        self.sine_button = QtWidgets.QPushButton('Sine')
+        self.sine_button.setCheckable(True)
+        self.sine_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f5f70;
+            }
+            QPushButton:checked {
+                background-color: #9e9eba;
+            }
+        """)
+
+        self.square_button = QtWidgets.QPushButton('Square')
+        self.square_button.setCheckable(True)
+        self.square_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f5f70;
+            }
+            QPushButton:checked {
+                background-color: #9e9eba;
+            }
+        """)
+
+        self.triangle_button = QtWidgets.QPushButton('Triangle')
+        self.triangle_button.setCheckable(True)
+        self.triangle_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f5f70;
+            }
+            QPushButton:checked {
+                background-color: #9e9eba;
+            }
+        """)
+
+        self.sawtooth_button = QtWidgets.QPushButton('Sawtooth')
+        self.sawtooth_button.setCheckable(True)
+        self.sawtooth_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f5f70;
+            }
+            QPushButton:checked {
+                background-color: #9e9eba;
+            }
+        """)
+
+        self.arb_button = QtWidgets.QPushButton('Arbitrary')
+        self.arb_button.setCheckable(True)
+        self.arb_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5f5f70;
+            }
+            QPushButton:checked {
+                background-color: #9e9eba;
+            }
+        """)
+
     def init_buttons_2(self):
         self.c2_sine_button = QtWidgets.QPushButton('Sine')
         self.c2_sine_button.setCheckable(True)
@@ -263,62 +324,20 @@ class WaveformGenerator(QtWidgets.QWidget):
             }
         """)
 
-    def init_buttons(self):
-        self.sine_button = QtWidgets.QPushButton('Sine')
-        self.sine_button.setCheckable(True)
-        self.sine_button.setStyleSheet("""
-            QPushButton {
-                background-color: #5f5f70;
-            }
-            QPushButton:checked {
-                background-color: #9e9eba;
-            }
-        """)
+    def set_Button_off(self):
+        self.sine_button.setChecked(False)
+        self.square_button.setChecked(False)
+        self.sawtooth_button.setChecked(False)
+        self.triangle_button.setChecked(False)
+        self.arb_button.setChecked(False)
 
-        self.square_button = QtWidgets.QPushButton('Square')
-        self.square_button.setCheckable(True)
-        self.square_button.setStyleSheet("""
-            QPushButton {
-                background-color: #5f5f70;
-            }
-            QPushButton:checked {
-                background-color: #9e9eba;
-            }
-        """)
-
-        self.triangle_button = QtWidgets.QPushButton('Triangle')
-        self.triangle_button.setCheckable(True)
-        self.triangle_button.setStyleSheet("""
-            QPushButton {
-                background-color: #5f5f70;
-            }
-            QPushButton:checked {
-                background-color: #9e9eba;
-            }
-        """)
-
-        self.sawtooth_button = QtWidgets.QPushButton('Sawtooth')
-        self.sawtooth_button.setCheckable(True)
-        self.sawtooth_button.setStyleSheet("""
-            QPushButton {
-                background-color: #5f5f70;
-            }
-            QPushButton:checked {
-                background-color: #9e9eba;
-            }
-        """)
-
-        self.arb_button = QtWidgets.QPushButton('Arbitrary')
-        self.arb_button.setCheckable(True)
-        self.arb_button.setStyleSheet("""
-            QPushButton {
-                background-color: #5f5f70;
-            }
-            QPushButton:checked {
-                background-color: #9e9eba;
-            }
-        """)
-
+    def set_Button_off2(self):
+        self.c2_sine_button.setChecked(False)
+        self.c2_square_button.setChecked(False)
+        self.c2_sawtooth_button.setChecked(False)
+        self.c2_triangle_button.setChecked(False)
+        self.c2_arb_button.setChecked(False)
+        
     #The following functions set the frequency values based on the user input
     def set_frequency(self, value):
         self.c1_freq = value
@@ -348,20 +367,6 @@ class WaveformGenerator(QtWidgets.QWidget):
     def set_c2_offset(self, value):
         self.c2_offset = value
 
-    def set_Button_off(self):
-        self.sine_button.setChecked(False)
-        self.square_button.setChecked(False)
-        self.sawtooth_button.setChecked(False)
-        self.triangle_button.setChecked(False)
-        self.arb_button.setChecked(False)
-
-    def set_Button_off2(self):
-        self.c2_sine_button.setChecked(False)
-        self.c2_square_button.setChecked(False)
-        self.c2_sawtooth_button.setChecked(False)
-        self.c2_triangle_button.setChecked(False)
-        self.c2_arb_button.setChecked(False)
-
     # The following instructions set the non-AWG wave type
     def set_sine(self):
         self.set_Button_off()
@@ -369,6 +374,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.waveform_type = 'sine'
 
     def set_c2_sine(self):
+        self.set_Button_off2()
+        self.c2_sine_button.setChecked(True)
         self.c2_waveform_type = 'sine'
 
     def set_triangle(self):
@@ -377,6 +384,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.waveform_type = 'triangle'
 
     def set_c2_triangle(self):
+        self.set_Button_off2()
+        self.c2_triangle_button.setChecked(True)
         self.c2_waveform_type = 'triangle'
 
     def set_square(self):
@@ -385,7 +394,9 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.waveform_type = 'square'
 
     def set_c2_square(self):
-        self.c2_waveform_type = 'square'
+        self.set_Button_off2()
+        self.c2_square_button.setChecked(True)
+        self.c2_square_type = 'square'
 
     def set_sawtooth(self):
         self.set_Button_off()
@@ -393,6 +404,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.waveform_type = 'sawtooth'
 
     def set_c2_sawtooth(self):
+        self.set_Button_off2()
+        self.c2_sawtooth_button.setChecked(True)
         self.c2_waveform_type = 'sawtooth'
 
     def set_arbitrary(self):
@@ -401,6 +414,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.waveform_type = 'arbitrary'
 
     def set_c2_arbitrary(self):
+        self.set_Button_off2()
+        self.c2_arb_button.setChecked(True)
         self.c2_waveform_type = 'arbitrary'
 
     # Takes the user inputted CSV files and loads them as the current waveform
@@ -599,13 +614,14 @@ class WaveformGenerator(QtWidgets.QWidget):
     
     #Saves the waveform drawn by the user.
     def save_waveform(self):
-        file_dialog = QtGui.QFileDialog()
-        file_dialog.setDefaultSuffix('txt')
-        file_dialog.setNameFilter('Text files (*.txt)')
-        if file_dialog.exec_():
-            file_path = file_dialog.selectedFiles()[0]
-            t, y = self.plot_data.getData()
-            np.savetxt(file_path, y)
+        #file_dialog = QtGui.QFileDialog()
+        #file_dialog.setDefaultSuffix('txt')
+        #file_dialog.setNameFilter('Text files (*.txt)')
+        #if file_dialog.exec_():
+            #file_path = file_dialog.selectedFiles()[0]
+            #t, y = self.plot_data.getData()
+            #np.savetxt(file_path, y)
+        dummy = True
 
     # Resets the waveform to default settings as the first opened by the user.
     def reset_waveform(self):

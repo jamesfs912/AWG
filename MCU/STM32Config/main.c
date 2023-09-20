@@ -111,6 +111,8 @@ int main(void)
   while(!SampleSize);
 
   MX_TIM2_Init();  // Now the timer is initialized with the received ARR value
+  HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+  HAL_TIM_Base_Stop(&htim2);
   HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)LUT, SampleSize, DAC_ALIGN_12B_R);
   HAL_TIM_Base_Start(&htim2);
   /* USER CODE END 2 */
