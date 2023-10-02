@@ -277,7 +277,10 @@ class WaveformGenerator(QtWidgets.QWidget):
         grid_layout.addWidget(self.c2_generate_button, 15, 5)
 
         self.setLayout(grid_layout)
-
+        self.plot_widget.setLabel('left', text='', units='V')
+        self.plot_widget.setLabel('bottom', text='', units='s')
+        self.plot_widget2.setLabel('left', text='', units='V')
+        self.plot_widget2.setLabel('bottom', text='', units='s')
         for i in range(0,6):
             grid_layout.setColumnStretch(i, 1)
 
@@ -440,7 +443,7 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.generate_waveform()
         except OSError:
             pg.QtGui.QMessageBox.warning(self, 'Error', 'Failed to read arbitrary waveform data')
-
+    
     # Generates the first waveform based on the user inputs
     def generate_waveform(self):
         # Amplitude verification
@@ -487,6 +490,8 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.plot_data.setData(t, y, pen='y')
         else:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
+        self.plot_widget.setLabel('left', text='', units='V')
+        self.plot_widget.setLabel('bottom', text='', units= 'S')
  
      # Generates the second waveform based on the user inputs
     
@@ -534,6 +539,8 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.c2_plot_data.setData(t, y, pen='c')
         else:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
+        self.plot_widget2.setLabel('left', text='', units='V')
+        self.plot_widget2.setLabel('bottom', text='', units='s')
         #self.c2_ampSelect.setText('')
         #self.c2_freqSelect.setText('')
 
