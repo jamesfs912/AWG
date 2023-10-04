@@ -1,4 +1,6 @@
-PCB/awg-backups/
-PCB/sym-lib-table
-PCB/fp-info-cache
+PCB/*/awg-backups/
+PCB/*/sym-lib-table
+PCB/*/fp-info-cache
+PCB/*/gerbers
+PCB/*/bom
 MCU_packets_and_lcd/Debug
