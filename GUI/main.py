@@ -6,7 +6,10 @@ import sys
 ## USB Modem, change data input type for offset, make a popup box for the device being connected, make the wave shape buttons generate instead of the generate button. Turn generate button into 
 ## a toggle channel off button. Change wave colors if it's off / illegal values. Generate when unfocused, Highlight shape chosen. Fix time base. Fix to one period. Sphynx documentation.
 ## Documentation : communication protocols
-
+## Put a minimum size
+## Batch, change color, fix offset changing
+## Check if making a pip package is easier 
+## Make it so sin is already selected 
 """
 Uncomment this if you're testing this from a windows and don't have the packages
 def download_and_import(package_names):
@@ -279,8 +282,18 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.setLayout(grid_layout)
         self.plot_widget.setLabel('left', text='', units='V')
         self.plot_widget.setLabel('bottom', text='', units='s')
+        self.plot_widget.setYRange(-10, 10)
+        self.plot_widget.setMinimumSize(600, 400)
+
         self.plot_widget2.setLabel('left', text='', units='V')
         self.plot_widget2.setLabel('bottom', text='', units='s')
+        self.plot_widget2.setYRange(-10, 10)
+        self.plot_widget2.setMinimumSize(600, 400)
+        self.plot_widget2.setLabel('left', text='', units='V')
+        self.plot_widget2.setLabel('bottom', text='', units='s')
+
+        self.set_sine()
+        self.set_c2_sine()
         for i in range(0,6):
             grid_layout.setColumnStretch(i, 1)
 
