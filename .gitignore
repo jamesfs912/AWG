@@ -4,3 +4,4 @@ PCB/*/fp-info-cache
 PCB/*/gerbers
 PCB/*/bom
 MCU_packets_and_lcd/Debug
+GUI/__pycache__

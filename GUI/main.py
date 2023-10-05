@@ -1,45 +1,61 @@
 import importlib
 import subprocess
 import sys 
-
+import os
 
 ## USB Modem, change data input type for offset, make a popup box for the device being connected, make the wave shape buttons generate instead of the generate button. Turn generate button into 
 ## a toggle channel off button. Change wave colors if it's off / illegal values. Generate when unfocused, Highlight shape chosen. Fix time base. Fix to one period. Sphynx documentation.
 ## Documentation : communication protocols
+## Put a minimum size
+## Batch, change color, fix offset changing
+## Check if making a pip package is easier 
+## Make it so sin is already selected 
+## if both channels are the same frequency, enable a phase selector -German
+## Add "DC" wave -German
+## if square wave, enable duty cycle -German
+## setting offset, amplitude, or frequency to decimal, such as "1.1" causes error -German
 
-"""
-Uncomment this if you're testing this from a windows and don't have the packages
 def download_and_import(package_names):
-    for package_name in package_names:
-        try:
-            importlib.import_module(package_name)
-            print(f"{package_name} is already imported.")
-        except ImportError:
-            print(f"{package_name} is not imported. Downloading and importing...")
-            try:
-                subprocess.check_call(['pip', 'install', package_name])
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to download or import {package_name}. Error: {e}. Try installing pip using: python -m pip install --upgrade pip")
-
-required_packages = ['numpy', 'PyQt6', 'PyQt6.QtWidgets', 'pyqtgraph',  'serial']
-imported_packages = download_and_import(required_packages)
-"""
+		for package_name in package_names:
+			try:
+				importlib.import_module(package_name)
+				print(f"{package_name} is already imported.")
+			except ImportError:
+				print(f"{package_name} is not imported. Downloading and importing...")
+				try:
+					subprocess.check_call(['pip', 'install', package_name])
+				except subprocess.CalledProcessError as e:
+					print(f"Failed to download or import {package_name}. Error: {e}. Try installing pip using: python -m pip install --upgrade pip")
+					
+#only do this if we are on windows	
+if os.name == "nt":
+	required_packages = ['numpy', 'PyQt6', 'pyqtgraph',  'serial']
+	imported_packages = download_and_import(required_packages)
+else:
+	pass #handle macos/linux?
 
 import subprocess
-import serial
 import math
 import numpy as np
 import pyqtgraph as pg
+from connection import Connection
 from pyqtgraph.Qt import QtCore, QtWidgets
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLineEdit, QPushButton, QVBoxLayout, QMessageBox
 )
+from wavegen import generateSamples
 
 grid_layout = QtWidgets.QGridLayout()
 
 class WaveformGenerator(QtWidgets.QWidget):
 
+    def statusCallback(self, status):
+        self.status_label.setText("Status: " + status)
+        self.connectButton.setEnabled(status == "disconnected")
+
+    def connectButtonClicked(self):
+        self.conn.tryConnect()
 
     def __init__(self):
         super().__init__()
@@ -62,10 +78,14 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.init_inputs()
         self.init_layout()
         self.init_connections()
+        
+        self.conn = Connection(self.statusCallback)
+        self.conn.tryConnect()
 
     def init_values(self):
+        self.GRAPH_SAMPLES = 1000
+	
         # Initialize variables
-        self.c1_fs = 1000
         self.c1_freq = 1
         self.c1_amplitude = 1
         self.c1_phase = 0
@@ -77,7 +97,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.toggled = 0
 
         #initialize default channel 2
-        self.c2_fs = 1000
         self.c2_freq = 1
         self.c2_amplitude = 1
         self.c2_phase = 0
@@ -97,6 +116,10 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.offsetMax = 5
 
     def init_inputs(self):
+        self.status_label = QtWidgets.QLabel("Status: ")
+        self.connectButton = QtWidgets.QPushButton("Connect")
+        self.connectButton.setEnabled(False)
+        
         #initialize channel 1 inputs
         self.c1_label = QtWidgets.QLabel(f'Channel 1')
         self.freq_label = QtWidgets.QLabel(f'Frequency (Hz): {self.c1_freq}')
@@ -242,52 +265,68 @@ class WaveformGenerator(QtWidgets.QWidget):
 
     def init_layout(self):
         grid_layout = QtWidgets.QGridLayout()
-        grid_layout.addWidget(self.plot_widget, 0, 0, 8, 5)
-        grid_layout.addWidget(self.c1_label, 0, 5, 1, 1)
-        grid_layout.addWidget(self.freq_label, 1, 5, 1,1)
-        grid_layout.addWidget(self.freqSelect, 1, 6)
-        grid_layout.addWidget(self.amp_label, 2, 5)
-        grid_layout.addWidget(self.ampSelect, 2, 6)
-        grid_layout.addWidget(self.offset_label, 3, 5)
-        grid_layout.addWidget(self.offsetSelect, 3, 6)
-        grid_layout.addWidget(self.sine_button, 4, 5,1,1)
-        grid_layout.addWidget(self.triangle_button, 4, 6)
-        grid_layout.addWidget(self.square_button, 5, 5)
-        grid_layout.addWidget(self.sawtooth_button, 5, 6)
-        grid_layout.addWidget(self.arb_button, 6, 5)
-        grid_layout.addWidget(self.arb_file_label, 6, 6)
-        grid_layout.addWidget(self.arb_file_button, 7, 6)
-        grid_layout.addWidget(self.generate_button, 7, 5)
+        
+        grid_layout.addWidget(self.status_label, 0, 0, 1, 1)
+        grid_layout.addWidget(self.connectButton, 0, 1, 1, 1)
+        
+        grid_layout.addWidget(self.plot_widget, 1, 0, 8, 5)
+        grid_layout.addWidget(self.c1_label, 1, 5, 1, 1)
+        grid_layout.addWidget(self.freq_label, 2, 5, 1,1)
+        grid_layout.addWidget(self.freqSelect, 2, 6)
+        grid_layout.addWidget(self.amp_label, 3, 5)
+        grid_layout.addWidget(self.ampSelect, 3, 6)
+        grid_layout.addWidget(self.offset_label, 4, 5)
+        grid_layout.addWidget(self.offsetSelect, 4, 6)
+        grid_layout.addWidget(self.sine_button, 5, 5,1,1)
+        grid_layout.addWidget(self.triangle_button, 5, 6)
+        grid_layout.addWidget(self.square_button, 6, 5)
+        grid_layout.addWidget(self.sawtooth_button, 6, 6)
+        grid_layout.addWidget(self.arb_button, 7, 5)
+        grid_layout.addWidget(self.arb_file_label, 7, 6)
+        grid_layout.addWidget(self.arb_file_button, 8, 6)
+        grid_layout.addWidget(self.generate_button, 8, 5)
 
-        grid_layout.addWidget(self.plot_widget2, 8, 0, 8, 5)
-        grid_layout.addWidget(self.c2_label, 8, 5)
-        grid_layout.addWidget(self.c2_freq_label, 9, 5)
-        grid_layout.addWidget(self.c2_freqSelect, 9, 6)
-        grid_layout.addWidget(self.c2_amp_label, 10, 5)
-        grid_layout.addWidget(self.c2_ampSelect, 10, 6)
-        grid_layout.addWidget(self.c2_offset_label, 11, 5)
-        grid_layout.addWidget(self.c2_offset_select, 11, 6)
-        grid_layout.addWidget(self.c2_sine_button, 12, 5)
-        grid_layout.addWidget(self.c2_triangle_button, 12, 6)
-        grid_layout.addWidget(self.c2_square_button, 13, 5)
-        grid_layout.addWidget(self.c2_sawtooth_button, 13, 6)
-        grid_layout.addWidget(self.c2_arb_button, 14, 5)
-        grid_layout.addWidget(self.c2_arb_file_label, 14, 6)
-        grid_layout.addWidget(self.c2_arb_file_button, 15, 6)
-        grid_layout.addWidget(self.c2_generate_button, 15, 5)
+        grid_layout.addWidget(self.plot_widget2, 9, 0, 8, 5)
+        grid_layout.addWidget(self.c2_label, 9, 5)
+        grid_layout.addWidget(self.c2_freq_label, 10, 5)
+        grid_layout.addWidget(self.c2_freqSelect, 10, 6)
+        grid_layout.addWidget(self.c2_amp_label, 11, 5)
+        grid_layout.addWidget(self.c2_ampSelect, 11, 6)
+        grid_layout.addWidget(self.c2_offset_label, 12, 5)
+        grid_layout.addWidget(self.c2_offset_select, 12, 6)
+        grid_layout.addWidget(self.c2_sine_button, 13, 5)
+        grid_layout.addWidget(self.c2_triangle_button, 13, 6)
+        grid_layout.addWidget(self.c2_square_button, 14, 5)
+        grid_layout.addWidget(self.c2_sawtooth_button, 14, 6)
+        grid_layout.addWidget(self.c2_arb_button, 15, 5)
+        grid_layout.addWidget(self.c2_arb_file_label, 15, 6)
+        grid_layout.addWidget(self.c2_arb_file_button, 16, 6)
+        grid_layout.addWidget(self.c2_generate_button, 16, 5)
 
         self.setLayout(grid_layout)
         self.plot_widget.setLabel('left', text='', units='V')
         self.plot_widget.setLabel('bottom', text='', units='s')
+        self.plot_widget.setYRange(-10, 10)
+        self.plot_widget.setMinimumSize(600, 400)
+
         self.plot_widget2.setLabel('left', text='', units='V')
         self.plot_widget2.setLabel('bottom', text='', units='s')
-        for i in range(0,6):
+        self.plot_widget2.setYRange(-10, 10)
+        self.plot_widget2.setMinimumSize(600, 400)
+        self.plot_widget2.setLabel('left', text='', units='V')
+        self.plot_widget2.setLabel('bottom', text='', units='s')
+
+        self.set_sine()
+        self.set_c2_sine()
+        for i in range(1,6):
             grid_layout.setColumnStretch(i, 1)
 
-        for i in range(0,16):
+        for i in range(1,17):
             grid_layout.setRowStretch(i, 1)
 
     def init_connections(self):
+        self.connectButton.clicked.connect(self.connectButtonClicked)
+    
         # Connect signals to slots
         self.freqSelect.textChanged.connect(self.set_frequency)
         self.ampSelect.textChanged.connect(self.set_amplitude)
@@ -458,49 +497,25 @@ class WaveformGenerator(QtWidgets.QWidget):
         # Updating Data Visuals
         self.offset_label.setText(f'Offset voltage: {self.c1_offset}')
         self.c1_offset = self.offset_verification(self.c1_offset)
+        
         # Sets the time base to always display at most 10 cycles.
         #self.c1_timeRange = pow(10, -(len(str(self.c1_freq))-1))
 
-        self.c1_timeRange = 1/self.c1_freq
-        #print("Generate")
-        #print(type(self.c1_amplitude))
-        #print(type(self.c1_freq))
-        #print("Generate end.")
-
         #Different waveform generations based on waveform type
-        if self.waveform_type == 'sine':
-            t = np.linspace(0, self.c1_timeRange, self.c1_fs, endpoint=False)
-            y = self.c1_amplitude * np.sin(2 * np.pi * self.c1_freq * t + np.deg2rad(self.c1_phase))+self.c1_offset
-            self.plot_data.setData(t, y, pen='y')
-        elif self.waveform_type == 'triangle':
-            t = np.linspace(0, self.c1_timeRange, self.c1_fs, endpoint=False)
-            y = self.c1_amplitude * (2 / np.pi * np.arcsin(np.sin(2 * np.pi * t * self.c1_freq + np.deg2rad(self.c1_phase))))+self.c1_offset
-            self.plot_data.setData(t, y, pen='y')
-        elif self.waveform_type == 'square':
-            t = np.linspace(0, self.c1_timeRange, self.c1_fs, endpoint=False)
-            y = self.c1_amplitude * np.where(np.mod(np.floor(2 * self.c1_freq * t + 2 * self.c1_phase / 360.0), 2) == 0, -1, 1)+self.c1_offset
-            self.plot_data.setData(t, y, pen='y')
-        elif self.waveform_type == 'sawtooth':
-            t = np.linspace(0, self.c1_timeRange, self.c1_fs, endpoint=False)
-            y = self.c1_amplitude * (2 / np.pi * np.arctan(np.tan(np.pi * t * self.c1_freq + np.deg2rad(self.c1_phase))))+self.c1_offset
-            self.plot_data.setData(t, y, pen='y')
-        elif self.waveform_type == 'arbitrary' and self.arbitrary_waveform is not None:
-            t = np.linspace(0, self.c1_timeRange, len(self.arbitrary_waveform), endpoint=False)
-            y = self.c1_amplitude * self.arbitrary_waveform+self.c1_offset
-            self.plot_data.setData(t, y, pen='y')
-        else:
+        samples = generateSamples(self.waveform_type, self.GRAPH_SAMPLES, self.c1_amplitude, offset = self.c1_offset, timeRange = 1 / self.c1_freq, arbitrary_waveform = self.arbitrary_waveform)
+        if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
+            
+        self.plot_data.setData(samples[1], samples[2], pen='y')
         self.plot_widget.setLabel('left', text='', units='V')
-        self.plot_widget.setLabel('bottom', text='', units= 'S')
+        self.plot_widget.setLabel('bottom', text='', units= 's')
  
      # Generates the second waveform based on the user inputs
     
     def generate_c2_waveform(self):
-
         # Amplitude verification
         self.c2_amplitude = self.amplitude_verification(self.c2_amplitude)
         self.c2_amp_label.setText(f'Amplitude: {self.c2_amplitude}')
-        
 
         # Frequency verification
         self.c2_freq = self.freq_verification(self.c2_freq)
@@ -509,36 +524,12 @@ class WaveformGenerator(QtWidgets.QWidget):
         # Updating Data Visuals
         self.c2_offset_label.setText(f'Offset voltage: {self.c2_offset}')
         self.c2_offset = self.offset_verification(self.c2_offset)
-        # Sets the time base to always display at most 10 cycles.
-        self.c2_timeRange = 1/self.c2_freq
 
-        # I have 0 idea why I have to cast amplitude to an int AGAIN for it to stay as an int
-        print("Generate")
-        #print(type(self.c2_amplitude))
-        #print(type(self.c2_freq))
-        #print("Generate end.")
-        if self.c2_waveform_type == 'sine':
-            t = np.linspace(0, self.c2_timeRange, self.c2_fs, endpoint=False)
-            y = self.c2_amplitude * np.sin(2 * np.pi * self.c2_freq * t + np.deg2rad(self.c2_phase))+self.c2_offset
-            self.c2_plot_data.setData(t, y, pen='c')
-        elif self.c2_waveform_type == 'triangle':
-            t = np.linspace(0, self.c2_timeRange, self.c2_fs, endpoint=False)
-            y = self.c2_amplitude * (2 / np.pi * np.arcsin(np.sin(2 * np.pi * t * self.c2_freq + np.deg2rad(self.c2_phase))))+self.c2_offset
-            self.c2_plot_data.setData(t, y, pen='c')
-        elif self.c2_waveform_type == 'square':
-            t = np.linspace(0, self.c2_timeRange, self.c2_fs, endpoint=False)
-            y = self.c2_amplitude * np.where(np.mod(np.floor(2 * self.c2_freq * t + 2 * self.c2_phase / 360.0), 2) == 0, -1, 1)+self.c2_offset
-            self.c2_plot_data.setData(t, y, pen='c')
-        elif self.c2_waveform_type == 'sawtooth':
-            t = np.linspace(0, self.c2_timeRange, self.c2_fs, endpoint=False)
-            y = self.c2_amplitude * (2 / np.pi * np.arctan(np.tan(np.pi * t * self.c2_freq + np.deg2rad(self.c2_phase))))+self.c2_offset
-            self.c2_plot_data.setData(t, y, pen='c')
-        elif self.c2_waveform_type == 'arbitrary' and self.c2_arbitrary_waveform is not None:
-            t = np.linspace(0, self.c2_timeRange, len(self.c2_arbitrary_waveform), endpoint=False)
-            y = self.c2_amplitude * self.c2_arbitrary_waveform+self.c2_offset
-            self.c2_plot_data.setData(t, y, pen='c')
-        else:
+        samples = generateSamples(self.c2_waveform_type, self.GRAPH_SAMPLES, self.c2_amplitude, offset = self.c2_offset, timeRange = 1 / self.c2_freq, arbitrary_waveform = self.arbitrary_waveform)
+        if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
+            
+        self.c2_plot_data.setData(samples[1], samples[2], pen='c')
         self.plot_widget2.setLabel('left', text='', units='V')
         self.plot_widget2.setLabel('bottom', text='', units='s')
         #self.c2_ampSelect.setText('')
@@ -588,30 +579,32 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.ThrowError("Invalid input(s). With value:" + value)
             return 0
 
+
+    #Completly different now... delete
     # Transfers the data needed for the MCU from the GUI.
-    def  transferWave(self, signal,  ser, samplesize):
-        try:
-            # Convert the frequency value to a byte string and send it over serial port
-            #freq_bytes = bytes(c1_fs, 'utf-8')
-            ser.write(b'\x02') # start handshake packet
-            for data in signal:
-
-                print(f"Sending frequency: {data}")
-                ser.write(data.encode())
-                print("Sending")
-                response = ser.read(2)
-                print(f"Received response: {response}")
-
-                # Testing values sent/received back
-                freq_received = int.from_bytes(response, byteorder='little')
-                print("Received frequency:", freq_received)
-
-                #ser.flushInput()
-                #ser.flushOutput() 
-
-            ser.write(b'\x03') #End handshake packet
-        except serial.SerialException:
-            print('Failed to communicate with the device')
+    #def  transferWave(self, signal,  ser, samplesize):
+    #    try:
+    #        # Convert the frequency value to a byte string and send it over serial port
+    #        #freq_bytes = bytes(c1_fs, 'utf-8')
+    #        ser.write(b'\x02') # start handshake packet
+    #        for data in signal:
+    #
+    #            print(f"Sending frequency: {data}")
+    #            ser.write(data.encode())
+    #            print("Sending")
+    #            response = ser.read(2)
+    #            print(f"Received response: {response}")
+    #
+    #            # Testing values sent/received back
+    #            freq_received = int.from_bytes(response, byteorder='little')
+    #            print("Received frequency:", freq_received)
+    #
+    #            #ser.flushInput()
+    #            #ser.flushOutput() 
+    #
+    #        ser.write(b'\x03') #End handshake packet
+    #    except serial.SerialException:
+    #        print('Failed to communicate with the device')
     
     #Saves the waveform drawn by the user.
     def save_waveform(self):
