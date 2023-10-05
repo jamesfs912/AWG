@@ -318,7 +318,8 @@ class WaveformGenerator(QtWidgets.QWidget):
 
         self.set_sine()
         self.set_c2_sine()
-        for i in range(1,6):
+        
+        for i in range(1, 6):
             grid_layout.setColumnStretch(i, 1)
 
         for i in range(1,17):
@@ -578,7 +579,6 @@ class WaveformGenerator(QtWidgets.QWidget):
             print(e)
             self.ThrowError("Invalid input(s). With value:" + value)
             return 0
-
 
     #Completly different now... delete
     # Transfers the data needed for the MCU from the GUI.
