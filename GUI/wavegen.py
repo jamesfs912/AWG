@@ -1,6 +1,6 @@
 import numpy as np
 
-def generateSamples(type, numSamples, amplitude, offset = 0, timeRange = 1, arbitrary_waveform = None):
+def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, offset = 0, timeRange = 1, clamp = None):
     if type == 'arbitrary':
         if arbitrary_waveform:
             t = np.linspace(0, 1, len(arbitrary_waveform), endpoint=False)
@@ -27,4 +27,6 @@ def generateSamples(type, numSamples, amplitude, offset = 0, timeRange = 1, arbi
         
     tt = tt * timeRange
     y = y * amplitude + offset
+    if clamp:
+        np.clip(y, clamp[0], clamp[1], y)
     return (False, tt, y)

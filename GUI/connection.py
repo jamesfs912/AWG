@@ -1,29 +1,114 @@
 import serial
 import serial.tools.list_ports
 import threading
+import math
+from wavegen import generateSamples
 
-class Connection:
+def getSkips(freq, numSamples, fclk):
+    return fclk / (freq * numSamples)
+
+def error(f_target, skips, fclk, samples):
+    skips = round(skips)
+    fs = fclk / skips
+    fo = fs / samples
+    return abs((fo - f_target) / f_target) * 100
     
-    def read_funct():
-        while True:
-            buff = ser.read(64)
-            if len(buff) == 0: #timeout
-                self.connected = False
-                self.statusCallback("disconnected")
-            if(buff[0:9] == bytes("\0STMAWG23", "ascii")):
-                self.statusCallback("connected")
-                print("got ack")
-                self.gotAck = True
-            while self.gotAck:
-                time.sleep(1/1000)
+class Connection:
+        
+    def read_funct(self):
+        #while True:
+            #while self.gotAck:
+            #    time.sleep(1/1000)
+        buff = self.ser.read(64)
+        if len(buff) == 0: #timeout
+            self.connected = False
+            self.statusCallback("disconnected")
+            return
+        if(buff[0:9] == bytes("\0STMAWG23", "ascii")):
+            self.connected = True
+            self.statusCallback("connected")
+            print("got ack")
+            #self.gotAck = True
+        
+    def sendBytes(self, bytes):
+        #self.gotAck = False
+        self.ser.write(bytes)
+        self.read_funct()
+        
+        #while not self.gotAck:
+        #    pass
+
+    def up64(self, bytes):
+        while(len(bytes) % 64 != 0):
+            bytes += [0]
+        return bytes
+    
+
+    
+    def sendWave(self, chan, freq, type, amplitude, offset, arbitrary_waveform = None):
+        if False and not(self.connected):
+            print("can't do this")
+            return
+    
+        #move constants to init or something
+        fclk = 72e6
+        dac_bits = 12
+        pwm_bits = 12
+        offset_amp = 5
+        PWM_ARR = 2**pwm_bits - 1
+        gain_amp = [5, 0.5]
+    
+        #which gain to use?
+        print(amplitude)
+        gain = 0 if amplitude > 0.5 else 1
+              
+        #calculate offset CCR value
+        CCR_offset = max(min(math.floor((-offset + offset_amp) / (offset_amp * 2) * PWM_ARR), PWM_ARR), 0)
+        
+        #calculate number of samples to use, and the optimal sample period (skips)
+        skipGoal = 20
+        max_samples = 1024*4
+        numSamples = max_samples
+        while (skips := getSkips(freq, numSamples, fclk)) < skipGoal:     
+            print(f"numSamples : {numSamples} skips: {skips}")
+            numSamples /= 2
+        skips = getSkips(freq, numSamples, fclk)
+        numSamples = int(numSamples)
+        
+        #calculate PSC and ARR from the sample period (skips)
+        PSC = 1
+        while (ARR := skips / PSC) > 2**16:
+            PSC += 1
+        PSC -= 1
+        ARR = round(ARR - 1)
+        skips_act = (PSC+1)*(ARR+1)
+        
+        #calculate samples 
+        dac_scale = (2**dac_bits) / 2
+        samples = generateSamples(type, numSamples, amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform, dac_scale, clamp = [0, 2**dac_bits - 1])
+        samples = samples[2]
+        
+        print(f"CCR_offset : {CCR_offset} gain_amp: {gain_amp[gain]}")
+        print(f"numSamples : {numSamples} skips opt: {skips}")
+        print(f"PSC : {PSC} ARR: {ARR}, skips act: {skips_act}")
+        print(f"error skips_opt: {error(freq, skips, fclk, numSamples)}%")     
+        print(f"error skips_act: {error(freq, skips_act, fclk, numSamples)}%")     
+    
+    
+    def sendHandShakePacket(self):
+        print("sending handshake packet")
+        bytes = [0] #packet type
+        for c in "INIT":
+            bytes += [ord(c)]
+        sendBytes(up64(bytes))
     
     def tryConnect(self):
         if self.connected:
-            raise Exception("Shouldn't be here")
+            print("Shouldn't be here")
             return
             
-        self.statusCallback("connecting")
-        self.gotAck = False
+       # self.statusCallback("connecting")
+        #self.gotAck = False
     
         ports = list( serial.tools.list_ports.comports() )
         print("ports:")
@@ -45,56 +130,23 @@ class Connection:
         com = "COM5"
         
         try:
-            this.ser = serial.Serial(com, 500000, timeout = 1) #BAUD Doesnt matter
+            self.ser = serial.Serial(com, 500000, timeout = 1) #BAUD Doesnt matter
         except Exception as e:
             print(e)
-            self.statusCallback("disconnected")
-            return False
+            self.statusCallback("disconnected", "unable to open port")
+            return
         
-        self.recv_thread = threading.Thread(target=read_funct, args=())
-        recv_thread.start()
-        #send handshake here
+        self.connected = True
+        #recv_thread = threading.Thread(target=read_funct, args=())
+        #recv_thread.start()
+        self.sendHandShakePacket()
     
     def __init__(self, statusCallback):
         self.connected = False
-        self.gotAck = False
+        #self.gotAck = False
         self.statusCallback = statusCallback
-        
-#
-#import time 
-#import sys
 
-#import math
-#import random
-#
-#
-##TODO use this to find the correct COM port?
 
-#
-##adds 0s to an array to make the size a multiple of 64
-#def up64(bytes):
-#	while(len(bytes) % 64 != 0):
-#		bytes += [0]
-#	return bytes
-#
-
-#
-##add timeout fail mechanism
-#def sendBytes(bytes):
-#	global gotAck
-#	gotAck = False
-#	ser.write(bytes)
-#	while not gotAck:
-#		pass
-#
-#def sendHandShakePacket():
-#	print("sending handshake packet")
-#	bytes = [0] #packet type
-#	for c in "INIT":
-#		bytes += [ord(c)]
-#	sendBytes(up64(bytes))
-#
-#		
 #def sendConfigPacket(chan, freq, offset, size):
 #	print("sending config packet")
 #	bytes = [1] #packet type
@@ -115,18 +167,4 @@ class Connection:
 #			bytes.append(r)
 #		print("LUT checksum: ", checksum)
 #	return sendBytes(bytes)
-#
-#time.sleep(0.01)
-#t1 = threading.Thread(target=read_funct, args=())
-#t1.start()
-#
-#	
-#sendHandShakePacket()
-#sendConfigPacket(0, 7, 4, 0)
-#sendConfigPacket(1, 8, 5, 64)
-#sendConfigPacket(0, 9, 6, 0)
-#sendConfigPacket(1, 2, 3, 64 * 8)
-#sendConfigPacket(1, 3, 3, 64 * 8)
-#sendConfigPacket(1, 4, 3, 64 * 8)
-#sendConfigPacket(1, 5, 3, 64 * 8)
 #

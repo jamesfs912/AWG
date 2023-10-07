@@ -14,6 +14,7 @@ import os
 ## Add "DC" wave -German
 ## if square wave, enable duty cycle -German
 ## setting offset, amplitude, or frequency to decimal, such as "1.1" causes error -German
+## make M = mega m = milli?, or both = milli? Mega makes sense for frequency but milli makes sense for amplitude/offset - German
 
 def download_and_import(package_names):
 		for package_name in package_names:
@@ -50,11 +51,14 @@ grid_layout = QtWidgets.QGridLayout()
 
 class WaveformGenerator(QtWidgets.QWidget):
 
-    def statusCallback(self, status):
+    def statusCallback(self, status, message):
         self.status_label.setText("Status: " + status)
         self.connectButton.setEnabled(status == "disconnected")
+        if False and message:
+            pg.QtWidgets.QMessageBox.warning(self, 'Error', message)
 
     def connectButtonClicked(self):
+        self.connectButton.setEnabled(False)
         self.conn.tryConnect()
 
     def __init__(self):
@@ -80,7 +84,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.init_connections()
         
         self.conn = Connection(self.statusCallback)
-        self.conn.tryConnect()
+        self.connectButtonClicked()
+        #self.conn.tryConnect()
 
     def init_values(self):
         self.GRAPH_SAMPLES = 1000
@@ -116,7 +121,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.offsetMax = 5
 
     def init_inputs(self):
-        self.status_label = QtWidgets.QLabel("Status: ")
+        self.status_label = QtWidgets.QLabel("Status: disconnected")
         self.connectButton = QtWidgets.QPushButton("Connect")
         self.connectButton.setEnabled(False)
         
@@ -426,7 +431,7 @@ class WaveformGenerator(QtWidgets.QWidget):
     def set_c2_square(self):
         self.set_Button_off2()
         self.c2_square_button.setChecked(True)
-        self.c2_square_type = 'square'
+        self.c2_waveform_type = 'square'
 
     def set_sawtooth(self):
         self.set_Button_off()
@@ -503,7 +508,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         #self.c1_timeRange = pow(10, -(len(str(self.c1_freq))-1))
 
         #Different waveform generations based on waveform type
-        samples = generateSamples(self.waveform_type, self.GRAPH_SAMPLES, self.c1_amplitude, offset = self.c1_offset, timeRange = 1 / self.c1_freq, arbitrary_waveform = self.arbitrary_waveform)
+        samples = generateSamples(self.waveform_type, self.GRAPH_SAMPLES, self.c1_amplitude, self.arbitrary_waveform, offset = self.c1_offset, timeRange = 1 / self.c1_freq)
         if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
             
@@ -526,7 +531,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_offset_label.setText(f'Offset voltage: {self.c2_offset}')
         self.c2_offset = self.offset_verification(self.c2_offset)
 
-        samples = generateSamples(self.c2_waveform_type, self.GRAPH_SAMPLES, self.c2_amplitude, offset = self.c2_offset, timeRange = 1 / self.c2_freq, arbitrary_waveform = self.arbitrary_waveform)
+        samples = generateSamples(self.c2_waveform_type, self.GRAPH_SAMPLES, self.c2_amplitude, self.arbitrary_waveform, offset = self.c2_offset, timeRange = 1 / self.c2_freq)
         if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
             
@@ -579,32 +584,6 @@ class WaveformGenerator(QtWidgets.QWidget):
             print(e)
             self.ThrowError("Invalid input(s). With value:" + value)
             return 0
-
-    #Completly different now... delete
-    # Transfers the data needed for the MCU from the GUI.
-    #def  transferWave(self, signal,  ser, samplesize):
-    #    try:
-    #        # Convert the frequency value to a byte string and send it over serial port
-    #        #freq_bytes = bytes(c1_fs, 'utf-8')
-    #        ser.write(b'\x02') # start handshake packet
-    #        for data in signal:
-    #
-    #            print(f"Sending frequency: {data}")
-    #            ser.write(data.encode())
-    #            print("Sending")
-    #            response = ser.read(2)
-    #            print(f"Received response: {response}")
-    #
-    #            # Testing values sent/received back
-    #            freq_received = int.from_bytes(response, byteorder='little')
-    #            print("Received frequency:", freq_received)
-    #
-    #            #ser.flushInput()
-    #            #ser.flushOutput() 
-    #
-    #        ser.write(b'\x03') #End handshake packet
-    #    except serial.SerialException:
-    #        print('Failed to communicate with the device')
     
     #Saves the waveform drawn by the user.
     def save_waveform(self):
