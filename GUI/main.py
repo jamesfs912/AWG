@@ -542,35 +542,74 @@ class WaveformGenerator(QtWidgets.QWidget):
         #self.c2_freqSelect.setText('')
 
     def offset_verification(self, value):
+        prefixes = {'m': 0.001, 'V': 1, 'v': 1, 'mV': 0.001, 'mv': 0.001}
         try:
-            if (int(value) >= self.offsetMin and int(value) <= self.offsetMax):
-                return int(value)
+            if isinstance(value, (int, float)):  # This only passes if the value is already numeric
+                return value
+
+            # prefix conversion
+            if value[-2:] in prefixes:
+                multiplier = prefixes[value[-2:]]
+                answer = multiplier * float(value[:-2])
+            elif value[-1] in prefixes:
+                multiplier = prefixes[value[-1]]
+                answer = multiplier * float(value[:-1])
             else:
-                self.ThrowError("Offset must be an integer value be between {0} and {1}".format(self.offsetMin, self.offsetMax))
-        except:
-            self.ThrowError("Offset must be an integer value be between {0} and {1}".format(self.offsetMin, self.offsetMax))
+                answer = float(value)
+                if self.offsetMin <= answer <= self.offsetMax:
+                    return answer
+
+            self.ThrowError("Voltage must be between {0}V and {1}V.".format(self.offsetMin, self.offsetMax))
+            return 0
+        
+        except Exception as e:
+            print(e)
+            self.ThrowError("Invalid input(s). With value: " + value)
+            return 0
 
     def amplitude_verification(self, value):
+        #try:
+         #   if (int(value) >= self.ampMin and int(value) <= self.ampMax):
+          #      return int(value)
+           # else:
+            #    self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
+        #except:
+         #   self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
+            
+        prefixes = {'m': 0.001}
         try:
-            if (int(value) >= self.ampMin and int(value) <= self.ampMax):
-                return int(value)
+            if isinstance(value, (int, float)):  # This only passes if the value is already numeric
+                return value
+
+            # prefix conversion
+            if value[-2:] in prefixes:
+                multiplier = prefixes[value[-2:]]
+                answer = multiplier * float(value[:-2])
+            elif value[-1] in prefixes:
+                multiplier = prefixes[value[-1]]
+                answer = multiplier * float(value[:-1])
             else:
-                self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
-        except:
-            self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
+                answer = float(value)
+            if self.ampMin <= answer <= self.ampMin:
+                self.ThrowError("Amplitude must be between {0}V and {1}V.".format(self.ampMin, self.ampMin))
+            return 0
+        except Exception as e:
+            print(e)
+            self.ThrowError("Invalid input(s). With value: " + value)
+            return 0
     
-    # Checks if the user inputted an amplitude value with a suffix and converts it accordingly, also checks for legal values.
+    # Checks if the user inputted an amplitude value with a prefix and converts it accordingly, also checks for legal values.
     def freq_verification(self, value):
-        suffixes = {'K': 1000, 'k': 1000, 'M': 1000000, 'm': 1000000}
+        prefixes = {'K': 1000, 'k': 1000, 'M': 1000000, 'm': 1000000}
         try:
-            if isinstance(value, int): #This only passes if the value has not been changed
+            if isinstance(value, (int, float)): #This only passes if the value has not been changed
                 return value
             
-            # Suffix conversion
+            # prefix conversion
             if(len(value) == 1):
                 return int(value)
-            elif value[-1] in suffixes:
-                multiplier = suffixes[value[-1]]
+            elif value[-1] in prefixes:
+                multiplier = prefixes[value[-1]]
                 answer = multiplier * int(value[:-1])
             else:
                 answer = int(value)
@@ -588,7 +627,7 @@ class WaveformGenerator(QtWidgets.QWidget):
     #Saves the waveform drawn by the user.
     def save_waveform(self):
         #file_dialog = QtGui.QFileDialog()
-        #file_dialog.setDefaultSuffix('txt')
+        #file_dialog.setDefaultprefix('txt')
         #file_dialog.setNameFilter('Text files (*.txt)')
         #if file_dialog.exec_():
             #file_path = file_dialog.selectedFiles()[0]
@@ -610,6 +649,7 @@ class WaveformGenerator(QtWidgets.QWidget):
     def ThrowError(self, message):
         self.errorBox.setText(message)
         self.errorBox.exec()
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     waveform_generator = WaveformGenerator()
