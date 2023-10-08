@@ -582,17 +582,15 @@ class WaveformGenerator(QtWidgets.QWidget):
                 return value
 
             # prefix conversion
-            if value[-2:] in prefixes:
-                multiplier = prefixes[value[-2:]]
-                answer = multiplier * float(value[:-2])
-            elif value[-1] in prefixes:
+            if value[-1] in prefixes:
                 multiplier = prefixes[value[-1]]
                 answer = multiplier * float(value[:-1])
             else:
                 answer = float(value)
             if self.ampMin <= answer <= self.ampMin:
-                self.ThrowError("Amplitude must be between {0}V and {1}V.".format(self.ampMin, self.ampMin))
-            return 0
+                return answer
+            self.ThrowError("Amplitude must be between {0}V and {1}V.".format(self.ampMin, self.ampMin))
+            
         except Exception as e:
             print(e)
             self.ThrowError("Invalid input(s). With value: " + value)
