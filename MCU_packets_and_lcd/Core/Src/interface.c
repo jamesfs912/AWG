@@ -1,80 +1,114 @@
 #include "interface.h"
+#include "stm32f3xx.h"
+#include "usb_device.h"
+
+
 #define printLine(...) ScrollDisplay();  sprintf(&charBuff[15], __VA_ARGS__); DrawDisplay();
 
-//the waveform table
-uint8_t awg_lut[AWG_NUM_CHAN][AWG_SAMPLES];
+uint8_t awg_lut[AWG_NUM_CHAN][AWG_SAMPLES*2];
 
-//how many bytes of the buffer we still need
 uint16_t BULK_BUFF_RECV = 0;
-//where to copy the incoming buffer
 uint8_t *BULK_BUFF;
 
-uint8_t temp_debug; //for debug
-uint16_t temp_debug2; //for debug
-extern char charBuff[16][20]; //for debug
+uint8_t temp_debug;
+uint16_t temp_debug2;
+uint32_t TIM2_Period_Value=0;
+extern char charBuff[16][20];
+/*
+extern DAC_HandleTypeDef hdac1;
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;*/
+extern DMA_HandleTypeDef hdma_dac1_ch1;
+extern DMA_HandleTypeDef hdma_dac1_ch2;
+
 
 const uint8_t ACK_STRING[ACK_STRING_LEN] = {'S', 'T', 'M', 'A', 'W', 'G', '2', '3'};
 const uint8_t HS_STRING[HS_STRING_LEN] = {'I', 'N', 'I', 'T'};
 
 void SendAck(){
-	TRANS_Packet pack;
-	pack.packet_type = 0;
-	memcpy(pack.ack_string, ACK_STRING, ACK_STRING_LEN);
-	if(	CDC_Transmit_FS(&pack, sizeof(TRANS_Packet)) ){
-		//shouldn't happen if PC side always waits for ACK before next packet
-		printLine("BUSY");
-	}
+    TRANS_Packet pack;
+    pack.packet_type = 0;
+    memcpy(pack.ack_string, ACK_STRING, ACK_STRING_LEN);
+    if (CDC_Transmit_FS(&pack, sizeof(TRANS_Packet))) {
+        printLine("BUSY");
+    }
 }
 
 void GotCDC_64B_Packet(char *ptr) {
-	if (!BULK_BUFF_RECV) { // "new" packet
-		RECV_Packet *packet = (RECV_Packet*) ptr;
-		if (packet->packet_type == 0) {
-			uint8_t *magic = &(packet->Content.HandShake.handshake_string);
-			printLine("HS %02X%02X%02X%02X", magic[0], magic[1], //write debug to LCD
-					magic[2], magic[3]);
+    if (!BULK_BUFF_RECV) {
+        RECV_Packet *packet = (RECV_Packet *) ptr;
+        if (packet->packet_type == 0) {
+            // Handle Handshake packet as before
+            uint8_t *magic = &(packet->Content.HandShake.handshake_string);
+            printLine("HS %02X%02X%02X%02X", magic[0], magic[1], magic[2], magic[3]);
 
-			//check if hanshake_string matches some string
-			int match = 1;
-			for(int i = 0; i < HS_STRING_LEN; i++){
-				if (magic[i] != HS_STRING[i]) match = 0;
-			}
-			if(match){
-				//send ACK here?
-				SendAck();
-			}
-		} else if (packet->packet_type == 1) {
-			uint8_t chan = packet->Content.AWG_SET.channel;
-			printLine("C %d %d %d %d", chan, //write debug to LCD
-					packet->Content.AWG_SET.freq,
-					packet->Content.AWG_SET.offset,
-					packet->Content.AWG_SET.LUT_SIZE);
+            int match = 1;
+            for (int i = 0; i < HS_STRING_LEN; i++) {
+                if (magic[i] != HS_STRING[i]) match = 0;
+            }
+            if (match) {
+                SendAck();
+            }
+        } else if (packet->packet_type == 1) {
+            uint8_t chan = packet->Content.AWG_SET.channel;
+            uint16_t PSC = packet->Content.AWG_SET.PSC;
+            uint16_t ARR = packet->Content.AWG_SET.ARR;
+            uint16_t CCR_offset = packet->Content.AWG_SET.CCR_offset;
+            uint32_t numSamples = packet->Content.AWG_SET.numSamples;
+            uint8_t gain = packet->Content.AWG_SET.gain;
 
-			//apply settings here
+            printLine("W %d %d %d %d", chan, gain, PSC, ARR);
+            printLine("%d %d", numSamples, CCR_offset);
 
-			//prepare for bulk transfer to awg lut
-			BULK_BUFF_RECV = packet->Content.AWG_SET.LUT_SIZE;
-			BULK_BUFF = &awg_lut[chan][0];
+            //BULK_BUFF_RECV = packet->Content.AWG_SET.numSamples*2;
+            BULK_BUFF_RECV = 0;
+            BULK_BUFF = (uint8_t *) awg_lut[chan];
 
-			//send ACK here?
-			SendAck();
 
-			temp_debug = chan; //for debug
-			temp_debug2 = packet->Content.AWG_SET.LUT_SIZE; //for debug
-		}
-	} else { //bytes to buffer
-		memcpy(BULK_BUFF, ptr, 64);
-		BULK_BUFF += 64;
-		BULK_BUFF_RECV -= 64;
 
-		//for debug
-		if (!BULK_BUFF_RECV) {
-			uint16_t checksum;
-			uint8_t *buff = awg_lut[temp_debug];
-			for (int i = 0; i < temp_debug2; i++) {
-				checksum = (checksum + *(buff++)) & 0xFF;
-			}
-			printLine("bulk %d", checksum);
-		}
-	}
+            temp_debug = chan;
+            temp_debug2 = BULK_BUFF_RECV;
+
+            SendAck();
+
+            if(chan == 0){
+            	TIM2->CCR1 = CCR_offset;
+            	HAL_GPIO_WritePin(GPIOA, GAIN_C0_Pin, gain);
+            }else{
+            	TIM2->CCR2 = CCR_offset;
+            	HAL_GPIO_WritePin(GPIOA, GAIN_C1_Pin, gain);
+            }
+
+            /*if (numSamples != 0 && chan == 0) {
+                htim2.Init.Prescaler = PSC;
+                htim2.Init.Period = ARR;
+
+                MX_TIM2_Init();
+
+                HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+                HAL_TIM_Base_Stop(&htim2);
+                HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)awg_lut[0], numSamples, DAC_ALIGN_12B_R);
+                HAL_TIM_Base_Start(&htim2);
+            }*/
+
+        }
+    } else {
+        memcpy(BULK_BUFF, ptr, 64);
+        BULK_BUFF += 64;
+        BULK_BUFF_RECV -= 64;
+
+        if (!BULK_BUFF_RECV) {
+
+
+            uint16_t checksum = 0;
+            uint16_t *buff = (uint16_t *) awg_lut[temp_debug];
+
+            for (int i = 0; i < temp_debug2 / sizeof(uint16_t); i++) {
+                checksum = (checksum + *(buff++)) & 0xFFFF;
+            }
+
+            printLine("bulk %04X", checksum);
+        }
+    }
 }
+

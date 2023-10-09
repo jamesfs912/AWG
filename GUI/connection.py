@@ -23,11 +23,11 @@ class Connection:
         buff = self.ser.read(64)
         if len(buff) == 0: #timeout
             self.connected = False
-            self.statusCallback("disconnected")
+            self.statusCallback("disconnected", None)
             return
         if(buff[0:9] == bytes("\0STMAWG23", "ascii")):
             self.connected = True
-            self.statusCallback("connected")
+            self.statusCallback("connected", None)
             print("got ack")
             #self.gotAck = True
 
@@ -90,7 +90,7 @@ class Connection:
         sample_bytes = samplesToBytes(samples)
         assert len(bytes) % 64 == 0
         self.ser.write(bytes)
-        self.ser.write(sample_bytes)
+        #self.ser.write(sample_bytes)
         self.read_funct()
     
     

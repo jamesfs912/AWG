@@ -531,8 +531,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c1_guide_lines[2].setData([-tr, tr * 2], [self.c1_offset - self.c1_amplitude, self.c1_offset - self.c1_amplitude])
         self.conn.sendWave(0, self.c1_freq, self.waveform_type, self.c1_amplitude, self.c1_offset, self.arbitrary_waveform)
         
-        self.conn.sendWave(0, self.c1_freq, self.waveform_type, self.c1_amplitude, self.c1_offset, self.arbitrary_waveform)
-
      # Generates the second waveform based on the user inputs
     
     def generate_c2_waveform(self):
@@ -560,6 +558,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_guide_lines[0].setData([-tr, tr * 2], [self.c2_offset, self.c2_offset])
         self.c2_guide_lines[1].setData([-tr, tr * 2], [self.c2_offset + self.c2_amplitude, self.c2_offset + self.c2_amplitude])
         self.c2_guide_lines[2].setData([-tr, tr * 2], [self.c2_offset - self.c2_amplitude, self.c2_offset - self.c2_amplitude])
+        self.conn.sendWave(1, self.c2_freq, self.waveform_type, self.c2_amplitude, self.c2_offset, self.arbitrary_waveform)
+
         #self.c2_ampSelect.setText('')
         #self.c2_freqSelect.setText('')
 
@@ -590,8 +590,9 @@ class WaveformGenerator(QtWidgets.QWidget):
             return 0
 
     def amplitude_verification(self, value):
+        return float(value)
         try:
-            if (int(value) >= self.ampMin and int(value) <= self.ampMax):
+            if (float(value >= self.ampMin) and float(value) <= self.ampMax):
                 return int(value)
             else:
                 self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
