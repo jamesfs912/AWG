@@ -2,7 +2,8 @@ import serial
 import serial.tools.list_ports
 import threading
 import math
-from wavegen import generateSamples
+from wavegen import *
+from struct import pack
 
 def getSkips(freq, numSamples, fclk):
     return fclk / (freq * numSamples)
@@ -29,14 +30,6 @@ class Connection:
             self.statusCallback("connected")
             print("got ack")
             #self.gotAck = True
-        
-    def sendBytes(self, bytes):
-        #self.gotAck = False
-        self.ser.write(bytes)
-        self.read_funct()
-        
-        #while not self.gotAck:
-        #    pass
 
     def up64(self, bytes):
         while(len(bytes) % 64 != 0):
@@ -45,10 +38,10 @@ class Connection:
     
 
     
-    def sendWave(self, chan, freq, type, amplitude, offset, arbitrary_waveform = None):
+    def sendWave(self, chan, freq, wave_type, amplitude, offset, arbitrary_waveform = None):
         if False and not(self.connected):
             print("can't do this")
-            return
+            #return
     
         #move constants to init or something
         fclk = 72e6
@@ -85,7 +78,7 @@ class Connection:
         
         #calculate samples 
         dac_scale = (2**dac_bits) / 2
-        samples = generateSamples(type, numSamples, amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform, dac_scale, clamp = [0, 2**dac_bits - 1])
+        samples = generateSamples(wave_type, numSamples, amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform, dac_scale, clamp = [0, 2**dac_bits - 1])
         samples = samples[2]
         
         print(f"CCR_offset : {CCR_offset} gain_amp: {gain_amp[gain]}")
@@ -93,15 +86,25 @@ class Connection:
         print(f"PSC : {PSC} ARR: {ARR}, skips act: {skips_act}")
         print(f"error skips_opt: {error(freq, skips, fclk, numSamples)}%")     
         print(f"error skips_act: {error(freq, skips_act, fclk, numSamples)}%")     
+        bytes = pack("BBBBHHHH52x", 1, chan, 0, gain, PSC, ARR, CCR_offset, numSamples)
+        sample_bytes = samplesToBytes(samples)
+        assert len(bytes) % 64 == 0
+        self.ser.write(bytes)
+        self.ser.write(sample_bytes)
+        self.read_funct()
     
     
     def sendHandShakePacket(self):
         print("sending handshake packet")
-        bytes = [0] #packet type
-        for c in "INIT":
-            bytes += [ord(c)]
-        sendBytes(up64(bytes))
-    
+        #bytes = [0] #packet type
+        #for c in "INIT":
+        #    bytes += [ord(c)]
+        #sendBytes(up64(bytes))
+        bytes = pack("B4B59x", 0, ord('I'), ord('N'), ord('I'), ord('T'))
+        assert len(bytes) == 64
+        self.ser.write(bytes)
+        self.read_funct()
+
     def tryConnect(self):
         if self.connected:
             print("Shouldn't be here")

@@ -30,3 +30,11 @@ def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, offs
     if clamp:
         np.clip(y, clamp[0], clamp[1], y)
     return (False, tt, y)
+    
+def samplesToBytes(samples):
+    ns = len(samples)
+    if ns % 64 != 0:
+        add = 64 - (ns % 64)
+        samples = np.pad(samples, (0,add), 'constant', constant_values=(0,))
+
+    return samples.astype(dtype = "<u2", casting='unsafe').tobytes()

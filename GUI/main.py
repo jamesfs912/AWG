@@ -72,6 +72,15 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.plot_widget2 = pg.PlotWidget()
         self.plot_widget.setMouseEnabled(x=False, y=False)
         self.plot_widget2.setMouseEnabled(x=False, y=False)
+        
+        self.c1_guide_lines = []
+        self.c2_guide_lines = []
+        for i in range(3):
+            self.c1_guide_lines.append(self.plot_widget.plot(pen=(255, 255, 0, 96)))
+            #self.c1_guide_lines.append(self.plot_widget.plot(pen=pg.mkPen(color='y', dash=[5, 5])))
+            self.c2_guide_lines.append(self.plot_widget2.plot(pen=pg.mkPen(color='c', dash=[5, 5])))
+        
+        
         self.plot_data = self.plot_widget.plot(pen='y')
         self.c2_plot_data = self.plot_widget2.plot(pen='b')
 
@@ -508,14 +517,22 @@ class WaveformGenerator(QtWidgets.QWidget):
         #self.c1_timeRange = pow(10, -(len(str(self.c1_freq))-1))
 
         #Different waveform generations based on waveform type
-        samples = generateSamples(self.waveform_type, self.GRAPH_SAMPLES, self.c1_amplitude, self.arbitrary_waveform, offset = self.c1_offset, timeRange = 1 / self.c1_freq)
+        tr = 1 / self.c1_freq
+        samples = generateSamples(self.waveform_type, self.GRAPH_SAMPLES, self.c1_amplitude, self.arbitrary_waveform, offset = self.c1_offset, timeRange = tr)
         if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
-            
+             
         self.plot_data.setData(samples[1], samples[2], pen='y')
         self.plot_widget.setLabel('left', text='', units='V')
         self.plot_widget.setLabel('bottom', text='', units= 's')
- 
+        self.plot_widget.setXRange(0, tr)
+        self.c1_guide_lines[0].setData([-tr, tr * 2], [self.c1_offset, self.c1_offset])
+        self.c1_guide_lines[1].setData([-tr, tr * 2], [self.c1_offset + self.c1_amplitude, self.c1_offset + self.c1_amplitude])
+        self.c1_guide_lines[2].setData([-tr, tr * 2], [self.c1_offset - self.c1_amplitude, self.c1_offset - self.c1_amplitude])
+        self.conn.sendWave(0, self.c1_freq, self.waveform_type, self.c1_amplitude, self.c1_offset, self.arbitrary_waveform)
+        
+        self.conn.sendWave(0, self.c1_freq, self.waveform_type, self.c1_amplitude, self.c1_offset, self.arbitrary_waveform)
+
      # Generates the second waveform based on the user inputs
     
     def generate_c2_waveform(self):
@@ -530,14 +547,19 @@ class WaveformGenerator(QtWidgets.QWidget):
         # Updating Data Visuals
         self.c2_offset_label.setText(f'Offset voltage: {self.c2_offset}')
         self.c2_offset = self.offset_verification(self.c2_offset)
-
-        samples = generateSamples(self.c2_waveform_type, self.GRAPH_SAMPLES, self.c2_amplitude, self.arbitrary_waveform, offset = self.c2_offset, timeRange = 1 / self.c2_freq)
+    
+        tr = 1 / self.c2_freq
+        samples = generateSamples(self.c2_waveform_type, self.GRAPH_SAMPLES, self.c2_amplitude, self.arbitrary_waveform, offset = self.c2_offset, timeRange = tr)
         if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
             
         self.c2_plot_data.setData(samples[1], samples[2], pen='c')
         self.plot_widget2.setLabel('left', text='', units='V')
         self.plot_widget2.setLabel('bottom', text='', units='s')
+        self.plot_widget2.setXRange(0, tr)
+        self.c2_guide_lines[0].setData([-tr, tr * 2], [self.c2_offset, self.c2_offset])
+        self.c2_guide_lines[1].setData([-tr, tr * 2], [self.c2_offset + self.c2_amplitude, self.c2_offset + self.c2_amplitude])
+        self.c2_guide_lines[2].setData([-tr, tr * 2], [self.c2_offset - self.c2_amplitude, self.c2_offset - self.c2_amplitude])
         #self.c2_ampSelect.setText('')
         #self.c2_freqSelect.setText('')
 
@@ -568,13 +590,13 @@ class WaveformGenerator(QtWidgets.QWidget):
             return 0
 
     def amplitude_verification(self, value):
-        #try:
-         #   if (int(value) >= self.ampMin and int(value) <= self.ampMax):
-          #      return int(value)
-           # else:
-            #    self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
-        #except:
-         #   self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
+        try:
+            if (int(value) >= self.ampMin and int(value) <= self.ampMax):
+                return int(value)
+            else:
+                self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
+        except:
+            self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
             
         prefixes = {'m': 0.001}
         try:
