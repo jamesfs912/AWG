@@ -578,8 +578,8 @@ class WaveformGenerator(QtWidgets.QWidget):
                 answer = multiplier * float(value[:-1])
             else:
                 answer = float(value)
-                if self.offsetMin <= answer <= self.offsetMax:
-                    return answer
+            if self.offsetMin <= answer <= self.offsetMax:
+                return answer
 
             self.ThrowError("Voltage must be between {0}V and {1}V.".format(self.offsetMin, self.offsetMax))
             return 0
@@ -590,18 +590,9 @@ class WaveformGenerator(QtWidgets.QWidget):
             return 0
 
     def amplitude_verification(self, value):
-        return float(value)
-        try:
-            if (float(value >= self.ampMin) and float(value) <= self.ampMax):
-                return int(value)
-            else:
-                self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
-        except:
-            self.ThrowError("Amplitude must be an integer value be between {0} and {1}".format(self.ampMin, self.ampMax))
-            
         prefixes = {'m': 0.001}
         try:
-            if isinstance(value, (int, float)):  # This only passes if the value is already numeric
+            if isinstance(value, (int, float)):  # This only passes if the value is already numericß
                 return value
 
             # prefix conversion
@@ -610,9 +601,9 @@ class WaveformGenerator(QtWidgets.QWidget):
                 answer = multiplier * float(value[:-1])
             else:
                 answer = float(value)
-            if self.ampMin <= answer <= self.ampMin:
+            if self.ampMin <= answer <= self.ampMax:
                 return answer
-            self.ThrowError("Amplitude must be between {0}V and {1}V.".format(self.ampMin, self.ampMin))
+            self.ThrowError("Amplitude must be between {0}V and {1}V.".format(self.ampMin, self.ampMax))
             
         except Exception as e:
             print(e)
