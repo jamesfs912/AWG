@@ -59,7 +59,7 @@ class Connection:
         CCR_offset = max(min(math.floor((-offset + offset_amp) / (offset_amp * 2) * PWM_ARR), PWM_ARR), 0)
         
         #calculate number of samples to use, and the optimal sample period (skips)
-        skipGoal = 20
+        skipGoal = 100
         max_samples = 1024*4
         numSamples = max_samples
         while (skips := getSkips(freq, numSamples, fclk)) < skipGoal:     
@@ -90,7 +90,7 @@ class Connection:
         sample_bytes = samplesToBytes(samples)
         assert len(bytes) % 64 == 0
         self.ser.write(bytes)
-        #self.ser.write(sample_bytes)
+        self.ser.write(sample_bytes)
         self.read_funct()
     
     
