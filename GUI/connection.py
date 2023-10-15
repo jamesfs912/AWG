@@ -59,7 +59,7 @@ class Connection:
         CCR_offset = max(min(math.floor((-offset + offset_amp) / (offset_amp * 2) * PWM_ARR), PWM_ARR), 0)
         
         #calculate number of samples to use, and the optimal sample period (skips)
-        skipGoal = 100
+        skipGoal = 25
         max_samples = 1024*4
         numSamples = max_samples
         while (skips := getSkips(freq, numSamples, fclk)) < skipGoal:     
@@ -75,7 +75,7 @@ class Connection:
         PSC -= 1
         ARR = round(ARR - 1)
         skips_act = (PSC+1)*(ARR+1)
-        
+        print("asd ", fclk / numSamples / skips_act)
         #calculate samples 
         dac_scale = (2**dac_bits) / 2
         samples = generateSamples(wave_type, numSamples, amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform, dac_scale, clamp = [0, 2**dac_bits - 1])
@@ -91,6 +91,7 @@ class Connection:
         assert len(bytes) % 64 == 0
         self.ser.write(bytes)
         self.ser.write(sample_bytes)
+        print(len(sample_bytes))
         self.read_funct()
     
     
@@ -130,10 +131,10 @@ class Connection:
             print("\n")
             
         #TODO automaticly pick correct port given above
-        com = "COM5"
+        com = "COM6"
         
         try:
-            self.ser = serial.Serial(com, 500000, timeout = 1) #BAUD Doesnt matter
+            self.ser = serial.Serial(com, 500000, timeout = 5) #BAUD Doesnt matter
         except Exception as e:
             print(e)
             self.statusCallback("disconnected", "unable to open port")

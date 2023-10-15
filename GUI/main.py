@@ -123,7 +123,7 @@ class WaveformGenerator(QtWidgets.QWidget):
     def init_restraints(self):
         #Hardware restraints
         self.freqMin = 0
-        self.freqMax = 100000
+        self.freqMax = 1000000
         self.ampMin = 0
         self.ampMax = 5
         self.offsetMin = -5
@@ -558,7 +558,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.c2_guide_lines[0].setData([-tr, tr * 2], [self.c2_offset, self.c2_offset])
         self.c2_guide_lines[1].setData([-tr, tr * 2], [self.c2_offset + self.c2_amplitude, self.c2_offset + self.c2_amplitude])
         self.c2_guide_lines[2].setData([-tr, tr * 2], [self.c2_offset - self.c2_amplitude, self.c2_offset - self.c2_amplitude])
-        self.conn.sendWave(1, self.c2_freq, self.waveform_type, self.c2_amplitude, self.c2_offset, self.arbitrary_waveform)
+        self.conn.sendWave(1, self.c2_freq, self.c2_waveform_type, self.c2_amplitude, self.c2_offset, self.arbitrary_waveform)
 
         #self.c2_ampSelect.setText('')
         #self.c2_freqSelect.setText('')
