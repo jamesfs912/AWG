@@ -61,10 +61,10 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
-#define GAIN_C0_Pin GPIO_PIN_6
-#define GAIN_C0_GPIO_Port GPIOA
-#define GAIN_C1_Pin GPIO_PIN_7
+#define GAIN_C1_Pin GPIO_PIN_6
 #define GAIN_C1_GPIO_Port GPIOA
+#define GAIN_C0_Pin GPIO_PIN_7
+#define GAIN_C0_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14

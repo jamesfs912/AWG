@@ -38,7 +38,7 @@ class Connection:
     
 
     
-    def sendWave(self, chan, freq, wave_type, amplitude, offset, arbitrary_waveform = None):
+    def sendWave(self, chan, freq, wave_type, amplitude, offset, arbitrary_waveform = None, forceGain = -1):
         if False and not(self.connected):
             print("can't do this")
             #return
@@ -52,9 +52,12 @@ class Connection:
         gain_amp = [5, 0.5]
     
         #which gain to use?
-        print(amplitude)
-        gain = 0 if amplitude > 0.5 else 1
-              
+        #print(amplitude)
+        if forceGain == -1:
+            gain = 0 if abs(amplitude) > 0.5 else 1
+        else:
+            gain = forceGain
+			
         #calculate offset CCR value
         CCR_offset = max(min(math.floor((-offset + offset_amp) / (offset_amp * 2) * PWM_ARR), PWM_ARR), 0)
         
@@ -63,7 +66,7 @@ class Connection:
         max_samples = 1024*4
         numSamples = max_samples
         while (skips := getSkips(freq, numSamples, fclk)) < skipGoal:     
-            print(f"numSamples : {numSamples} skips: {skips}")
+            #print(f"numSamples : {numSamples} skips: {skips}")
             numSamples /= 2
         skips = getSkips(freq, numSamples, fclk)
         numSamples = int(numSamples)
@@ -75,23 +78,23 @@ class Connection:
         PSC -= 1
         ARR = round(ARR - 1)
         skips_act = (PSC+1)*(ARR+1)
-        print("asd ", fclk / numSamples / skips_act)
+       # print("asd ", fclk / numSamples / skips_act)
         #calculate samples 
         dac_scale = (2**dac_bits) / 2
         samples = generateSamples(wave_type, numSamples, amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform, dac_scale, clamp = [0, 2**dac_bits - 1])
         samples = samples[2]
         
-        print(f"CCR_offset : {CCR_offset} gain_amp: {gain_amp[gain]}")
-        print(f"numSamples : {numSamples} skips opt: {skips}")
-        print(f"PSC : {PSC} ARR: {ARR}, skips act: {skips_act}")
-        print(f"error skips_opt: {error(freq, skips, fclk, numSamples)}%")     
-        print(f"error skips_act: {error(freq, skips_act, fclk, numSamples)}%")     
+        #print(f"CCR_offset : {CCR_offset} gain_amp: {gain_amp[gain]}")
+        #print(f"numSamples : {numSamples} skips opt: {skips}")
+        #print(f"PSC : {PSC} ARR: {ARR}, skips act: {skips_act}")
+        #print(f"error skips_opt: {error(freq, skips, fclk, numSamples)}%")     
+        #print(f"error skips_act: {error(freq, skips_act, fclk, numSamples)}%")     
         bytes = pack("BBBBHHHH52x", 1, chan, 0, gain, PSC, ARR, CCR_offset, numSamples)
         sample_bytes = samplesToBytes(samples)
         assert len(bytes) % 64 == 0
         self.ser.write(bytes)
         self.ser.write(sample_bytes)
-        print(len(sample_bytes))
+        #print(len(sample_bytes))
         self.read_funct()
     
     
@@ -114,6 +117,8 @@ class Connection:
        # self.statusCallback("connecting")
         #self.gotAck = False
     
+        portName = None
+    
         ports = list( serial.tools.list_ports.comports() )
         print("ports:")
         for port in ports:
@@ -129,12 +134,17 @@ class Connection:
             print(port.product)
             print(port.interface)
             print("\n")
+            if(port.vid == 1155 and port.pid == 22336):
+                portName = port.name
+                break
             
         #TODO automaticly pick correct port given above
-        com = "COM6"
-        
+        if not portName:
+            self.statusCallback("disconnected", "device not found")
+            return
+            
         try:
-            self.ser = serial.Serial(com, 500000, timeout = 5) #BAUD Doesnt matter
+            self.ser = serial.Serial(portName, 500000, timeout = 5) #BAUD Doesnt matter
         except Exception as e:
             print(e)
             self.statusCallback("disconnected", "unable to open port")
@@ -149,26 +159,3 @@ class Connection:
         self.connected = False
         #self.gotAck = False
         self.statusCallback = statusCallback
-
-
-#def sendConfigPacket(chan, freq, offset, size):
-#	print("sending config packet")
-#	bytes = [1] #packet type
-#	bytes += [chan] #channel to configure
-#	bytes += [freq]
-#	bytes += [offset]
-#	bytes += [size  & 0xFF, (size >> 8)  & 0xFF]
-#	
-#	bytes = up64(bytes)
-#	if(size != 0):
-#		if(size % 64 != 0):
-#			print("BAD SIZE")
-#				
-#		checksum = 0
-#		for i in range(size):
-#			r = random.randint(0, 255)
-#			checksum = (checksum + r) % 256;
-#			bytes.append(r)
-#		print("LUT checksum: ", checksum)
-#	return sendBytes(bytes)
-#

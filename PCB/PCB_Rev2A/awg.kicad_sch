@@ -2065,7 +2065,7 @@
     (uuid 1babfda2-1a27-4ce3-bff5-428af5ee8c20)
   )
   (text "22ohm should be at the MCU\npin not here, but we don't\nhave a choice"
-    (at 109.22 165.1 0)
+    (at 111.76 165.1 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 31157601-d3d0-426d-bf99-ce2db1c46e1f)
   )

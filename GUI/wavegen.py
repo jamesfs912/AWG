@@ -24,7 +24,9 @@ def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, offs
         elif type == "sawtooth":
             t = np.mod(t + 0.5, 1)
             y = np.mod(t * 2, 2) - 1
-        
+        elif type == "testdc":
+            y = np.empty(numSamples)
+            y.fill(1)
     tt = tt * timeRange
     y = y * amplitude + offset
     if clamp:
