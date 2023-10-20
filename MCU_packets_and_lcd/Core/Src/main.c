@@ -49,48 +49,9 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
 
-/* USER CODE BEGIN PV */
-//uint16_t test_sine1[256] = {2048,2831,3495,3939,4095,3939,3495,2831,
-//		2048,1264,600,156,0,156,600,1264};
+uint16_t dc_volt1[256] = {2048, 2048};
 
-///uint16_t test_sine2[256] = {2048,2831,3495,3939,4095,3939,3495,2831,
-//		2048,1264,600,156,0,156,600,1264};
-
-uint16_t test_sine1[256] = {1792,
-		2379,
-		2877,
-		3210,
-		3327,
-		3210,
-		2877,
-		2379,
-		1792,
-		1204,
-		706,
-		373,
-		256,
-		373,
-		706,
-		1204
-};
-
-uint16_t test_sine2[256] = {1792,
-		2379,
-		2877,
-		3210,
-		3327,
-		3210,
-		2877,
-		2379,
-		1792,
-		1204,
-		706,
-		373,
-		256,
-		373,
-		706,
-		1204
-};
+uint16_t dc_volt2[256] = {2048, 2048};
 
 /* USER CODE END PV */
 
@@ -145,15 +106,19 @@ int main(void)
   MX_TIM6_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
-  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) test_sine1, (uint32_t) 16, DAC_ALIGN_12B_R);
+
+  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) dc_volt1, (uint32_t) 2, DAC_ALIGN_12B_R);
   HAL_TIM_Base_Start(&htim6);
-  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*) test_sine2, (uint32_t) 16, DAC_ALIGN_12B_R);
+  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*) dc_volt2, (uint32_t) 2, DAC_ALIGN_12B_R);
   HAL_TIM_Base_Start(&htim7);
+
   static_assert(sizeof(RECV_Packet) <= 64);
+
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 	TIM2->CCR1 = 2048;
 	TIM2->CCR2 = 2048;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -345,7 +310,7 @@ static void MX_TIM6_Init(void)
   htim6.Instance = TIM6;
   htim6.Init.Prescaler = 0;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 101;
+  htim6.Init.Period = 3599999;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -383,7 +348,7 @@ static void MX_TIM7_Init(void)
   htim7.Instance = TIM7;
   htim7.Init.Prescaler = 0;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 100;
+  htim7.Init.Period = 3599999;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {

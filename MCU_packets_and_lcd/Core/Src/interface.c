@@ -29,6 +29,7 @@ void SendAck(){
 }
 
 void GotCDC_64B_Packet(char *ptr) {
+
     if (!BULK_BUFF_RECV) {
         RECV_Packet *packet = (RECV_Packet *) ptr;
         if (packet->packet_type == 0) {
@@ -58,6 +59,7 @@ void GotCDC_64B_Packet(char *ptr) {
             	TIM6->ARR = ARR;
             	TIM6->PSC = PSC;
 
+
                 HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
                 HAL_TIM_Base_Stop(&htim6);
                 HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)awg_lut[0], numSamples, DAC_ALIGN_12B_R);
@@ -68,6 +70,7 @@ void GotCDC_64B_Packet(char *ptr) {
             	TIM2->CCR2 = CCR_offset;
             	TIM7->ARR = ARR;
             	TIM7->PSC = PSC;
+
 
                 HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_2);
                 HAL_TIM_Base_Stop(&htim7);
