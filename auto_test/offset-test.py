@@ -38,17 +38,17 @@ scope.open(dev, sampling_frequency=5e6, buffer_size=0, offset=0, amplitude_range
 
 offset = -5
 while offset <= 5:
-	conn.sendWave(1, 1, "testdc", 0, offset)
+	conn.sendWave(0, 1, "testdc", 0, offset)
 	time.sleep(1)
 	x, t = scope.record(dev, 1)
 	samples_y[0] += [avg(x)]
 	
-	conn.sendWave(1, 1, "testdc", 5, offset)
+	conn.sendWave(0, 1, "testdc", 5, offset)
 	time.sleep(0.1)
 	x, t = scope.record(dev, 1)
 	samples_y[1] += [avg(x)]
 	
-	conn.sendWave(1, 1, "testdc", -5, offset)
+	conn.sendWave(0, 1, "testdc", -5, offset)
 	time.sleep(0.1)
 	x, t = scope.record(dev, 1)
 	samples_y[2] += [avg(x)]
@@ -59,7 +59,7 @@ while offset <= 5:
 	#plt.show()
 
 	samples_x += [offset]
-	offset += 0.1
+	offset += 2.5
 
 par = np.polyfit(samples_x, samples_y[0], 1, full=True)
 slope=par[0][0]
@@ -91,5 +91,4 @@ plt.text(-4, -1, "slope: " + str(round(slope, 3)) + "\noffset: " + str(round(int
 #plt.xlabel("requested offset (V)")
 #plt.ylabel("offset measured (V)")
 plt.show()
-
 
