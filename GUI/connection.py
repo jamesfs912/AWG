@@ -4,6 +4,7 @@ import threading
 import math
 from wavegen import *
 from struct import pack
+import os
 
 def getSkips(freq, numSamples, fclk):
     return fclk / (freq * numSamples)
@@ -35,8 +36,6 @@ class Connection:
         while(len(bytes) % 64 != 0):
             bytes += [0]
         return bytes
-    
-
     
     def sendWave(self, chan, freq, wave_type, amplitude, offset, arbitrary_waveform = None, forceGain = -1):
         if False and not(self.connected):
@@ -100,10 +99,6 @@ class Connection:
     
     def sendHandShakePacket(self):
         print("sending handshake packet")
-        #bytes = [0] #packet type
-        #for c in "INIT":
-        #    bytes += [ord(c)]
-        #sendBytes(up64(bytes))
         bytes = pack("B4B59x", 0, ord('I'), ord('N'), ord('I'), ord('T'))
         assert len(bytes) == 64
         self.ser.write(bytes)
@@ -114,9 +109,6 @@ class Connection:
             print("Shouldn't be here")
             return
             
-       # self.statusCallback("connecting")
-        #self.gotAck = False
-    
         portName = None
     
         ports = list( serial.tools.list_ports.comports() )
@@ -137,11 +129,14 @@ class Connection:
             if(port.vid == 1155 and port.pid == 22336):
                 portName = port.name
                 break
-            
-        #TODO automaticly pick correct port given above
+			
         if not portName:
             self.statusCallback("disconnected", "device not found")
             return
+            
+        if os.name == "posix":
+            portName = "/dev/" + portName
+            
             
         try:
             self.ser = serial.Serial(portName, 500000, timeout = 5) #BAUD Doesnt matter
