@@ -43,6 +43,7 @@ import pyqtgraph as pg
 from connection import Connection
 from pyqtgraph.Qt import QtCore, QtWidgets
 from PyQt6.QtCore import Qt
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLineEdit, QPushButton, QVBoxLayout, QMessageBox,QComboBox
 )
@@ -51,6 +52,7 @@ from wavegen import generateSamples
 grid_layout = QtWidgets.QGridLayout()
 
 class WaveformGenerator(QtWidgets.QWidget):
+    statusCallbackSignal = pyqtSignal(str, str)
 
     def statusCallback(self, status, message):
         self.status_label.setText("Status: " + status)
@@ -59,6 +61,7 @@ class WaveformGenerator(QtWidgets.QWidget):
             pg.QtWidgets.QMessageBox.warning(self, 'Error', message)
 
     def connectButtonClicked(self):
+        print("hello")
         self.connectButton.setEnabled(False)
         self.conn.tryConnect()
 
@@ -93,7 +96,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.init_layout()
         self.init_connections()
         
-        self.conn = Connection(self.statusCallback)
+        self.statusCallbackSignal.connect(self.statusCallback)
+        self.conn = Connection(self.statusCallbackSignal)
         self.connectButtonClicked()
         #self.conn.tryConnect()
 
@@ -246,7 +250,7 @@ class WaveformGenerator(QtWidgets.QWidget):
             grid_layout.setRowStretch(i, 1)
 
     def init_connections(self):
-        #self.connectButton.clicked.connect(self.connectButtonClicked)
+        self.connectButton.clicked.connect(self.connectButtonClicked)
 
         # Connect signals to slots
         self.freqSelect.textChanged.connect(self.set_frequency)
@@ -553,6 +557,9 @@ class WaveformGenerator(QtWidgets.QWidget):
     def ThrowError(self, message):
         self.errorBox.setText(message)
         self.errorBox.exec()
+        
+    def closeEvent(self, event):
+        self.conn.close()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
@@ -560,4 +567,8 @@ if __name__ == '__main__':
     waveform_generator.show()
     
     drawer_window = wave_drawer.AppWindow()
-    sys.exit(app.exec())
+    app.exec()
+    #sys.exit(app.exec())
+
+    sys.exit()
+    #os._exit (1)

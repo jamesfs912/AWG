@@ -5,6 +5,9 @@ import math
 from wavegen import *
 from struct import pack
 import os
+from queue import Queue
+import time 
+from PyQt6.QtCore import pyqtSignal
 
 def getSkips(freq, numSamples, fclk):
     return fclk / (freq * numSamples)
@@ -17,20 +20,66 @@ def error(f_target, skips, fclk, samples):
     
 class Connection:
         
-    def read_funct(self):
-        #while True:
-            #while self.gotAck:
-            #    time.sleep(1/1000)
-        buff = self.ser.read(64)
-        if len(buff) == 0: #timeout
+    def sendHandShakePacket(self):
+        print("sending handshake packet")
+        bytes = pack("B4B59x", 0, ord('I'), ord('N'), ord('I'), ord('T'))
+        assert len(bytes) == 64
+        self.sendQ.put(bytes)
+        
+    def read_disconnect(self, msg):
+        if self.connected:
             self.connected = False
-            self.statusCallback("disconnected", None)
-            return
-        if(buff[0:9] == bytes("\0STMAWG23", "ascii")):
-            self.connected = True
-            self.statusCallback("connected", None)
-            print("got ack")
-            #self.gotAck = True
+            self.statusCallback.emit("disconnected", msg)
+            self.ser.close()
+                    
+    def read_funct(self):
+        timeouts = 0
+        while self.connected:
+            try:
+                buff = self.ser.read(64)
+            except:
+                print("foo")
+                buff = None
+                self.read_disconnect("Connection Disconnected")
+                break
+                
+            if len(buff) == 0: #timeout 
+                #send keep alive packets?
+                if timeouts == 0:
+                    timeouts = 1
+                    self.sendHandShakePacket()
+                else:
+                    print("timeut")
+                    self.read_disconnect("timeout")
+                pass
+            else:
+                if(buff[0:9] == bytes("\0STMAWG23", "ascii")):
+                    timeouts = 0
+                    self.statusCallback.emit("connected", None)
+                    print("got ack")
+                    #self.gotAck = True
+                else:
+                    self.connected = False
+                    self.sendQ.put(None)
+                    self.statusCallback.emit("disconnected", "Bad packet")
+        self.sendQ.put(None)
+        print("read close")
+                
+            
+    def write_funct(self):
+        while self.connected:
+            packet = self.sendQ.get()
+            if packet:
+                try:
+                    self.ser.write(packet)
+                except:
+                    pass
+        print("write close")
+        
+    def close(self):
+        if self.connected:
+            self.connected = False
+            self.ser.close()
 
     def up64(self, bytes):
         while(len(bytes) % 64 != 0):
@@ -38,7 +87,7 @@ class Connection:
         return bytes
     
     def sendWave(self, chan, freq, wave_type, amplitude, offset, arbitrary_waveform = None, forceGain = -1):
-        if False and not(self.connected):
+        if not(self.connected):
             print("can't do this")
             #return
     
@@ -91,19 +140,9 @@ class Connection:
         bytes = pack("BBBBHHHH52x", 1, chan, 0, gain, PSC, ARR, CCR_offset, numSamples)
         sample_bytes = samplesToBytes(samples)
         assert len(bytes) % 64 == 0
-        self.ser.write(bytes)
-        self.ser.write(sample_bytes)
-        #print(len(sample_bytes))
-        self.read_funct()
-    
-    
-    def sendHandShakePacket(self):
-        print("sending handshake packet")
-        bytes = pack("B4B59x", 0, ord('I'), ord('N'), ord('I'), ord('T'))
-        assert len(bytes) == 64
-        self.ser.write(bytes)
-        self.read_funct()
-
+        bytes += sample_bytes
+        self.sendQ.put(bytes)
+        
     def tryConnect(self):
         if self.connected:
             print("Shouldn't be here")
@@ -131,25 +170,30 @@ class Connection:
                 break
 			
         if not portName:
-            self.statusCallback("disconnected", "device not found")
+            self.statusCallback.emit("disconnected", "device not found")
             return
             
         if os.name == "posix":
             portName = "/dev/" + portName
             
-            
         try:
             self.ser = serial.Serial(portName, 500000, timeout = 5) #BAUD Doesnt matter
         except Exception as e:
             print(e)
-            self.statusCallback("disconnected", "unable to open port")
+            self.statusCallback.emit("disconnected", "unable to open port")
             return
         
         self.connected = True
-        #recv_thread = threading.Thread(target=read_funct, args=())
-        #recv_thread.start()
+        
+        self.sendQ = Queue()
         self.sendHandShakePacket()
-    
+        
+        self.write_thread = threading.Thread(target=self.write_funct, args=())
+        self.write_thread.start()
+        #
+        self.read_thread = threading.Thread(target=self.read_funct, args=())
+        self.read_thread.start()
+        
     def __init__(self, statusCallback):
         self.connected = False
         #self.gotAck = False
