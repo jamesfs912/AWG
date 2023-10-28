@@ -11,13 +11,16 @@ def check_pyinstaller_installed():
     except FileNotFoundError:
         return False
 
-def package_with_pyinstaller(script_name, onefile=True):
+def package_with_pyinstaller(script_name, onefile=True, hidden_imports=[]):
     cmd = ['pyinstaller']
 
     if onefile:
         cmd.append('--onefile')
-    cmd.append('--noconsole') 
+    cmd.append('--noconsole')
 
+    # Add hidden imports to the command
+    for hidden_import in hidden_imports:
+        cmd.extend(['--hidden-import', hidden_import])
 
     cmd.append(script_name)
 
@@ -35,7 +38,10 @@ if __name__ == "__main__":
         print("PyInstaller not found. Installing...")
         install_pyinstaller()
 
-    return_code = package_with_pyinstaller('main.py', onefile=True)
+    # Add hidden imports here
+    hidden_imports_list = ['numpy', 'pyserial', 'PyQt6', 'pyqtgraph', 'numpy']
+
+    return_code = package_with_pyinstaller('main.py', onefile=True, hidden_imports=hidden_imports_list)
 
     if return_code == 0:
         print("Packaging successful!")
