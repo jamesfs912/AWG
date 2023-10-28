@@ -69,6 +69,8 @@ class WaveformGenerator(QtWidgets.QWidget):
         super().__init__()
         self.setWindowTitle('Waveform Generator')
 
+	self.resize(400, 300)
+	    
         grid_layout = QtWidgets.QGridLayout()
 
         # Create GUI elements
