@@ -39,7 +39,7 @@ if __name__ == "__main__":
         install_pyinstaller()
 
     # Add hidden imports here
-    hidden_imports_list = ['numpy', 'pyserial', 'PyQt6', 'pyqtgraph', 'numpy']
+    hidden_imports_list = ['numpy', 'pyserial', 'PyQt6', 'pyqtgraph']
 
     return_code = package_with_pyinstaller('main.py', onefile=True, hidden_imports=hidden_imports_list)
 
