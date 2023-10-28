@@ -17,24 +17,24 @@ import wave_drawer
 ## setting offset, amplitude, or frequency to decimal, such as "1.1" causes error -German
 ## make M = mega m = milli?, or both = milli? Mega makes sense for frequency but milli makes sense for amplitude/offset - German
 
-def download_and_import(package_names):
-		for package_name in package_names:
-			try:
-				importlib.import_module(package_name)
-				print(f"{package_name} is already imported.")
-			except ImportError:
-				print(f"{package_name} is not imported. Downloading and importing...")
-				try:
-					subprocess.check_call(['pip', 'install', package_name])
-				except subprocess.CalledProcessError as e:
-					print(f"Failed to download or import {package_name}. Error: {e}. Try installing pip using: python -m pip install --upgrade pip")
-					
-#only do this if we are on windows	
-if os.name == "nt":
-	required_packages = ['numpy', 'PyQt6', 'pyqtgraph',  'serial']
-	imported_packages = download_and_import(required_packages)
-else:
-	pass #handle macos/linux?
+#def download_and_import(package_names):
+#		for package_name in package_names:
+#			try:
+#				importlib.import_module(package_name)
+#				print(f"{package_name} is already imported.")
+#			except ImportError:
+#				print(f"{package_name} is not imported. Downloading and importing...")
+#				try:
+#					subprocess.check_call(['pip', 'install', package_name])
+#				except subprocess.CalledProcessError as e:
+#					print(f"Failed to download or import {package_name}. Error: {e}. Try installing pip using: python -m pip install --upgrade pip")
+#					
+##only do this if we are on windows	
+#if os.name == "nt":
+#	required_packages = ['numpy', 'PyQt6', 'pyqtgraph',  'serial']
+#	imported_packages = download_and_import(required_packages)
+#else:
+#	pass #handle macos/linux?
 
 import subprocess
 import math
@@ -42,15 +42,21 @@ import numpy as np
 import pyqtgraph as pg
 from connection import Connection
 from pyqtgraph.Qt import QtCore, QtWidgets
-from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLineEdit, QPushButton, QVBoxLayout, QMessageBox,QComboBox
 )
+from PyQt6 import QtGui
 from wavegen import generateSamples
+import threading
 
 grid_layout = QtWidgets.QGridLayout()
-
+        
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+        
 class WaveformGenerator(QtWidgets.QWidget):
     statusCallbackSignal = pyqtSignal(str, str)
 
@@ -58,18 +64,27 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.status_label.setText("Status: " + status)
         self.connectButton.setEnabled(status == "disconnected")
         if message:
-            pg.QtWidgets.QMessageBox.warning(self, 'Error', message)
+            pg.QtWidgets.QMessageBox.critical(self, 'Error', message)
+            #msgBox = QMessageBox()
+            #msgBox.setIcon(QMessageBox.Icon.Critical)
+            #msgBox.setWindowTitle("Error")
+            #msgBox.setText(message)
+            #msgBox.setModal(False)
+            #self.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
+            #msgBox.show()
 
     def connectButtonClicked(self):
         print("hello")
         self.connectButton.setEnabled(False)
         self.conn.tryConnect()
-
+        
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Waveform Generator')
 	    
         grid_layout = QtWidgets.QGridLayout()
+
+        self.setWindowIcon(QtGui.QIcon(resource_path("icon.ico")))
 
         # Create GUI elements
         self.plot_widget = pg.PlotWidget()
@@ -98,8 +113,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         
         self.statusCallbackSignal.connect(self.statusCallback)
         self.conn = Connection(self.statusCallbackSignal)
-        self.connectButtonClicked()
-        #self.conn.tryConnect()
 
     def init_values(self):
         self.GRAPH_SAMPLES = 1000
@@ -306,57 +319,6 @@ class WaveformGenerator(QtWidgets.QWidget):
 
     def set_c2_offset(self, value):
         self.c2_offset = value
-
-    # The following instructions set the non-AWG wave type
-    def set_sine(self):
-        self.set_Button_off()
-        self.sine_button.setChecked(True)
-        self.waveform_type = 'sine'
-
-    def set_c2_sine(self):
-        self.set_Button_off2()
-        self.c2_sine_button.setChecked(True)
-        self.c2_waveform_type = 'sine'
-
-    def set_triangle(self):
-        self.set_Button_off()
-        self.triangle_button.setChecked(True)
-        self.waveform_type = 'triangle'
-
-    def set_c2_triangle(self):
-        self.set_Button_off2()
-        self.c2_triangle_button.setChecked(True)
-        self.c2_waveform_type = 'triangle'
-
-    def set_square(self):
-        self.set_Button_off()
-        self.square_button.setChecked(True)
-        self.waveform_type = 'square'
-
-    def set_c2_square(self):
-        self.set_Button_off2()
-        self.c2_square_button.setChecked(True)
-        self.c2_waveform_type = 'square'
-
-    def set_sawtooth(self):
-        self.set_Button_off()
-        self.sawtooth_button.setChecked(True)
-        self.waveform_type = 'sawtooth'
-
-    def set_c2_sawtooth(self):
-        self.set_Button_off2()
-        self.c2_sawtooth_button.setChecked(True)
-        self.c2_waveform_type = 'sawtooth'
-
-    def set_arbitrary(self):
-        self.set_Button_off()
-        self.arb_button.setChecked(True)
-        self.waveform_type = 'arbitrary'
-
-    def set_c2_arbitrary(self):
-        self.set_Button_off2()
-        self.c2_arb_button.setChecked(True)
-        self.c2_waveform_type = 'arbitrary'
 
     # Takes the user inputted CSV files and loads them as the current waveform
     def select_arbitrary_file(self):
@@ -565,7 +527,8 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     waveform_generator = WaveformGenerator()
     waveform_generator.show()
-    
+    waveform_generator.connectButtonClicked()
+
     drawer_window = wave_drawer.AppWindow()
     app.exec()
     #sys.exit(app.exec())
