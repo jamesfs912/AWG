@@ -88,8 +88,7 @@ class Connection:
     
     def sendWave(self, chan, freq, wave_type, amplitude, offset, arbitrary_waveform = None, forceGain = -1):
         if not(self.connected):
-            print("can't do this")
-            #return
+            return
     
         #move constants to init or something
         fclk = 72e6

@@ -17,25 +17,6 @@ import wave_drawer
 ## setting offset, amplitude, or frequency to decimal, such as "1.1" causes error -German
 ## make M = mega m = milli?, or both = milli? Mega makes sense for frequency but milli makes sense for amplitude/offset - German
 
-#def download_and_import(package_names):
-#		for package_name in package_names:
-#			try:
-#				importlib.import_module(package_name)
-#				print(f"{package_name} is already imported.")
-#			except ImportError:
-#				print(f"{package_name} is not imported. Downloading and importing...")
-#				try:
-#					subprocess.check_call(['pip', 'install', package_name])
-#				except subprocess.CalledProcessError as e:
-#					print(f"Failed to download or import {package_name}. Error: {e}. Try installing pip using: python -m pip install --upgrade pip")
-#					
-##only do this if we are on windows	
-#if os.name == "nt":
-#	required_packages = ['numpy', 'PyQt6', 'pyqtgraph',  'serial']
-#	imported_packages = download_and_import(required_packages)
-#else:
-#	pass #handle macos/linux?
-
 import subprocess
 import math
 import numpy as np

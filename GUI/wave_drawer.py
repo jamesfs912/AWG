@@ -81,7 +81,6 @@ class MyPlotWidget(pg.PlotWidget):
                 self.line = self.plot(tValues, yValues, pen='b')
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-
         if event.button().name == 'LeftButton':
             self.am_drawing = False
 
@@ -100,45 +99,6 @@ class MyPlotWidget(pg.PlotWidget):
     def truncate(self, number: float, digits: int) -> float:
         pow10 = 10 ** digits
         return number * pow10 // 1 / pow10
-
-#    def setLine(self):
-#        global tValues, yValues
-#        self.clear()
-#        nextPoint = 0
-#        for i in range(0, len(tValues)):
-#            yValues[i] = 0
-#
-#    def setSine(self):
-#        global tValues, yValues
-#        yValues = []
-#        self.clear()
-#        for i in range(0, len(tValues)):
-#            yValues.append(1 * (np.sin(2 * np.pi * 1 * tValues[i])))
-#        self.line = self.plot(tValues, yValues, pen='b')
-#
-#    def setTriangle(self):
-#        global tValues, yValues
-#        yValues = []
-#        self.clear()
-#        for i in range(0, len(tValues)):
-#            yValues.append(1 * (2 / np.pi * np.arcsin(np.sin(2 * np.pi * tValues[i] * 1))))
-#        self.line = self.plot(tValues, yValues, pen='b')
-#
-#    def setSquare(self):
-#        global tValues, yValues
-#        yValues = []
-#        self.clear()
-#        for i in range(0, len(tValues)):
-#            yValues.append(1 * np.where(np.mod(np.floor(2 * 1 * tValues[i] + 2), 2) == 0, -1, 1))
-#        self.line = self.plot(tValues, yValues, pen='b')
-#
-#    def setSawtooth(self):
-#        global tValues, yValues
-#        yValues = []
-#        self.clear()
-#        for i in range(0, len(tValues)):
-#            yValues.append(1 * (2 / np.pi * np.arctan(np.tan(np.pi * tValues[i] * 1))))
-#        self.line = self.plot(tValues, yValues, pen='b')
 
     def setSamples(self, samples):
         global tValues, yValues
