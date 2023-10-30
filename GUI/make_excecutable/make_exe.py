@@ -6,9 +6,12 @@ import sys
 import platform  # Add this import to detect the OS
 import os
 
-#move up a dir becouse we are in /make_excecutbale
-os.chdir('..')
+#move up a dir becouse we are in /make_excecutable
 print(os.getcwd())
+if not os.getcwd().endswith("make_excecutable"):
+    print("must be run from \"/make_excecutable\" folder")
+    exit()
+os.chdir('..')
 
 #check_and_install_pyinstaller
 try:
@@ -20,7 +23,7 @@ except FileNotFoundError:
 cmd = ['pyinstaller']
 cmd.extend(['--workpath', "bin/build_garbage"])
 cmd.extend(['--name', NAME])
-cmd.extend(['--add-data', "icon.ico:."])
+cmd.extend(['--add-data', "icon/:icon/"])
 
 #One file or not?
 if ONE_FILE:
@@ -30,16 +33,17 @@ else:
 
 hidden_imports = []
 
+#OS specific arguments
 os_name = platform.system().lower()
 print("Running on: ", os_name)
-if os_name == "linux":
+if os_name == "linux":  #LINUX
     cmd.extend(['--distpath', "bin/linux"])
     cmd.extend(['--strip'])
-elif os_name == "windows":
+elif os_name == "windows":  #WINDOWS
     cmd.extend(['--distpath', "bin/windows"])
-    cmd.extend(['--icon', "icon.ico"])
+    cmd.extend(['--icon', "icon/icon.ico"])
     cmd.extend(['--hide-console', "hide-late"])
-elif os_name == "darwin":
+elif os_name == "darwin":   #MACOS
     cmd.extend(['--distpath', "bin/macos"])
     cmd.append('--windowed')
     hidden_imports = ['numpy', 'pyserial', 'PyQt6', 'pyqtgraph']

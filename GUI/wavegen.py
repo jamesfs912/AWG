@@ -1,6 +1,6 @@
 import numpy as np
 
-def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, offset = 0, timeRange = 1, clamp = None):
+def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, duty = 50, phase = 0, offset = 0,  timeRange = 1, clamp = None):
     if type == 'arbitrary':
         if arbitrary_waveform:
             t = np.linspace(0, 1, len(arbitrary_waveform), endpoint=False)
@@ -10,23 +10,29 @@ def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, offs
     else:
         t = np.linspace(0, 1, numSamples, endpoint=False)
         tt = t
-        # + np.deg2rad(self.c1_phase) TODO: add phase back in
-        #when adding phase do it by "rotating" t:
-        #t = (t + phaseAs0to1) mod 1
-    
+        
+        phase = float(phase)
+        duty = float(duty)
+        
+        t = np.mod(t + phase / 360, 1)
+        
         if type == 'sine':
             y =  np.sin(2 * np.pi * t)
         elif type == "triangle":
             t = np.mod(t + 0.25, 1)
             y = (np.mod(t * 2, 1) * -(np.floor(t * 2) * 2 - 1) + np.floor(t * 2)) * 2 - 1
         elif type == "square":
-            y = np.floor(t * 2) * 2 - 1
+            #y = np.floor(t * 2) * 2 - 1
+            #y[t >= int(duty)/100] = -1
+            y = np.ones(numSamples)
+            y[t >= duty / 100] = -1
         elif type == "sawtooth":
             t = np.mod(t + 0.5, 1)
             y = np.mod(t * 2, 2) - 1
-        elif type == "testdc":
-            y = np.empty(numSamples)
-            y.fill(1)
+        elif type == "dc":
+            amplitude = 0
+            y = np.ones(numSamples)
+        
     tt = tt * timeRange
     y = y * amplitude + offset
     if clamp:
