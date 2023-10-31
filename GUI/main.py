@@ -10,12 +10,6 @@ import wave_drawer
 ## Put a minimum size
 ## Batch, change color, fix offset changing
 ## Check if making a pip package is easier 
-## Make it so sin is already selected 
-## if both channels are the same frequency, enable a phase selector -German
-## Add "DC" wave -German
-## if square wave, enable duty cycle -German
-## setting offset, amplitude, or frequency to decimal, such as "1.1" causes error -German
-## make M = mega m = milli?, or both = milli? Mega makes sense for frequency but milli makes sense for amplitude/offset - German
 
 import subprocess
 import math
@@ -52,6 +46,10 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.connectButton.setEnabled(status == "disconnected")
         if message:
             pg.QtWidgets.QMessageBox.critical(self, 'Error', message)
+        if status == "connected":
+            for c in self.channels:
+                print(c.chan_num)
+                #c.setRunningStatus(False)
 
     def connectButtonClicked(self):
         self.connectButton.setEnabled(False)
@@ -80,13 +78,12 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.grid_layout.addWidget(self.open_drawer, 0, 3)
         self.open_drawer.clicked.connect(self.fun_open_drawer)
  
-        self.channels = []
-        for i in range(2):
-            self.channels += [Channal(i, self.grid_layout, run_icon, stop_icon)]
-
-        
         self.statusCallbackSignal.connect(self.statusCallback)
         self.conn = Connection(self.statusCallbackSignal)
+ 
+        self.channels = []
+        for i in range(2):
+            self.channels += [Channal(i, self.grid_layout, run_icon, stop_icon, self.conn)]
 
         for i in range(1, 6):
             self.grid_layout.setColumnStretch(i, 1)
@@ -297,12 +294,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         #light_palette.setColor(light_palette.ColorRole.Window, Qt.GlobalColor.white)  # Background color
         #light_palette.setColor(light_palette.ColorRole.WindowText, Qt.GlobalColor.black)  # Text color
 
-def test(cal : int):
-    print(cal)
-
 if __name__ == '__main__':
-    test("foobar")
-
     app = QtWidgets.QApplication(sys.argv)
     waveform_generator = WaveformGenerator()
     waveform_generator.show()

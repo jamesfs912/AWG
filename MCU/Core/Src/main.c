@@ -49,9 +49,8 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
 
+/* USER CODE BEGIN PV */
 uint16_t dc_volt1[256] = {2048, 2048};
-
-uint16_t dc_volt2[256] = {2048, 2048};
 
 /* USER CODE END PV */
 
@@ -109,8 +108,21 @@ int main(void)
 
   HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) dc_volt1, (uint32_t) 2, DAC_ALIGN_12B_R);
   HAL_TIM_Base_Start(&htim6);
-  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*) dc_volt2, (uint32_t) 2, DAC_ALIGN_12B_R);
+  HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*) dc_volt1, (uint32_t) 2, DAC_ALIGN_12B_R);
   HAL_TIM_Base_Start(&htim7);
+
+
+  volatile int a = offsetof(RECV_Packet, packet_type);
+  volatile int b = offsetof(RECV_Packet, Content.AWG_SET.channel);
+  //volatile int c = offsetof(RECV_Packet, Content.AWG_SET.temp);
+  volatile int d = offsetof(RECV_Packet, Content.AWG_SET.gain);
+  volatile int e = offsetof(RECV_Packet, Content.AWG_SET.PSC);
+  volatile int f = offsetof(RECV_Packet, Content.AWG_SET.ARR);
+  volatile int g = offsetof(RECV_Packet, Content.AWG_SET.CCR_offset);
+  volatile int h = offsetof(RECV_Packet, Content.AWG_SET.numSamples);
+  volatile int o = offsetof(RECV_Packet, Content.AWG_SET.phaseARR);
+//  int k = offsetof(RECV_Packet, Content.AWG_SET.channel);
+
 
   static_assert(sizeof(RECV_Packet) <= 64);
 
@@ -310,7 +322,7 @@ static void MX_TIM6_Init(void)
   htim6.Instance = TIM6;
   htim6.Init.Prescaler = 0;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 3599999;
+  htim6.Init.Period = 65535;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -348,7 +360,7 @@ static void MX_TIM7_Init(void)
   htim7.Instance = TIM7;
   htim7.Init.Prescaler = 0;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 3599999;
+  htim7.Init.Period = 65535;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {

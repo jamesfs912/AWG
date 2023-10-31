@@ -10,23 +10,33 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6 import QtGui
 from wavegen import generateSamples
+from connection import Connection
 
 class Channal:
     def update_dropdown(self):
         self.waveform_type = self.dropdown.currentText().lower()
         if (self.waveform_type == 'square'):
+            self.freqSelect.setEnabled(True)
+            self.ampSelect.setEnabled(True)
+            self.offsetSelect.setEnabled(True)
             self.DCSelect.setEnabled(True)
+            self.phaseSelect.setEnabled(True)
         elif(self.waveform_type == 'dc'):
             self.freqSelect.setEnabled(False)
             self.ampSelect.setEnabled(False)
-        else:
+            self.offsetSelect.setEnabled(True)
             self.DCSelect.setEnabled(False)
+            self.phaseSelect.setEnabled(False)
+        else:
             self.freqSelect.setEnabled(True)
             self.ampSelect.setEnabled(True)
+            self.offsetSelect.setEnabled(True)
+            self.DCSelect.setEnabled(False)
+            self.phaseSelect.setEnabled(True)
         self.generate_waveform()
 
-    def toggleRunningStatus(self):
-        self.running = not self.running
+    def setRunningStatus(self, status):
+        self.running = status
         if self.running:
             self.run_stop.setText("Stop")
             self.run_stop.setIcon(self.stop_icon)
@@ -34,11 +44,17 @@ class Channal:
             self.run_stop.setText("Run")
             self.run_stop.setIcon(self.run_icon)
         self.generate_waveform()
-        
+    
+    def toggleRunningStatus(self):
+        self.setRunningStatus(not self.running)
+    
     def generate_waveform(self):
+        if not self.initDone:
+            return
+            
         #Different waveform generations based on waveform type
         tr = 1 / self.freq
-        samples = generateSamples(self.waveform_type, 1000, self.amplitude, self.arbitrary_waveform, self.dutyCycle, self.phase, offset = self.offset, timeRange = tr)
+        samples = generateSamples(self.waveform_type, 1000, self.amplitude, self.arbitrary_waveform, self.dutyCycle, self.phase / 360, offset = self.offset, timeRange = tr, clamp = [-10, 10])
         if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
              
@@ -52,21 +68,24 @@ class Channal:
         self.guide_lines[2].setData([-tr, tr * 2], [self.offset - self.amplitude, self.offset - self.amplitude])
         self.guide_lines[1].setVisible(self.waveform_type != "dc")
         self.guide_lines[2].setVisible(self.waveform_type != "dc")
-        #self.conn.sendWave(0, self.freq, self.waveform_type, self.amplitude, self.offset, self.arbitrary_waveform)
-     
+        
+        if self.running:
+            self.conn.sendWave(self.chan_num, freq = self.freq, wave_type = self.waveform_type, amplitude = self.amplitude, offset = self.offset, arbitrary_waveform = None, duty = self.dutyCycle, phase = self.phase / 360)
+        else:
+            self.conn.sendWave(self.chan_num, wave_type = "dc", offset = 0)
+        
         if self.running:
             self.on_off_label.setText("ON")
-            #self.on_off_label.setAttr("color", "#00FF00")
             self.on_off_label.setColor((0, 255, 0))
         else:
             self.on_off_label.setText("OFF")
-            ##self.on_off_label.setAttr(color = (255, 0, 0))
             self.on_off_label.setColor((255, 0, 0))
             
     prefixes_v = {"m" : 1e-3}
     prefixes_f = {"K" : 1e3, "M" : 1e6}
     
     def findBestPrefix(self, val, prefixes):
+        #return (val, "")
         for p in prefixes:
             n_val = val / prefixes[p]
             if n_val >= 1 and n_val < 1e3:
@@ -83,11 +102,10 @@ class Channal:
             str_in = str_in[:-len(expected_unit)]
             
         mag = 1
-        if prefixes:
-            for p in prefixes:
-                if self.endsWithLower(str_in, p):
-                    str_in = str_in[:-len(p)]
-                    mag = prefixes[p]
+        for p in prefixes:
+            if self.endsWithLower(str_in, p):
+                str_in = str_in[:-len(p)]
+                mag = prefixes[p]
         
         try:
             val = float(str_in)
@@ -103,36 +121,31 @@ class Channal:
         self.freq = val
         val, prefix = self.findBestPrefix(val, self.prefixes_f)
         self.freqSelect.setText(f"{val} {prefix}hz")
-        if self.initDone:
-            self.generate_waveform()
+        self.generate_waveform()
         
     def setAmp(self, val):
         self.amplitude = val
         val, prefix = self.findBestPrefix(val, self.prefixes_v)
         self.ampSelect.setText(f"{val} {prefix}V")
-        if self.initDone:
-            self.generate_waveform()
+        self.generate_waveform()
         
     def setOffset(self, val):
         self.offset = val
         val, prefix = self.findBestPrefix(val, self.prefixes_v)
         self.offsetSelect.setText(f"{val} {prefix}V")
-        if self.initDone:
-            self.generate_waveform()
+        self.generate_waveform()
         
     def setDC(self, val):
         self.dutyCycle = val
         #val, prefix = self.findBestPrefix(val, None)
         self.DCSelect.setText(f"{val} %")
-        if self.initDone:
-            self.generate_waveform()
+        self.generate_waveform()
         
     def setPhase(self, val):
         self.phase = val
         #val, prefix = self.findBestPrefix(val, None)
         self.phaseSelect.setText(f"{val} deg")
-        if self.initDone:
-            self.generate_waveform()
+        self.generate_waveform()
 
     def updateFreq(self):
         val = self.parseStringToVal(self.freqSelect.text(), self.prefixes_f, "hz")
@@ -156,29 +169,32 @@ class Channal:
             self.offsetSelect.undo()
         else:
             range = 5 if self.waveform_type != "dc" else 10
+            range = 10
             val = self.fixRange(val, -range, range)
             self.setOffset(val)
         
     def updateDC(self):
-        val = self.parseStringToVal(self.DCSelect.text(), None, "%")
+        val = self.parseStringToVal(self.DCSelect.text(), [], "%")
         if val is None:
             self.DCSelect.undo()
         else:
-            val = self.fixRange(abs(val), 0, 100)
+            val = self.fixRange(val, 0, 100)
             self.setDC(val)
         
     def updatePhase(self):
-        val = self.parseStringToVal(self.phaseSelect.text(), None, "deg")
+        val = self.parseStringToVal(self.phaseSelect.text(), [], "deg")
         if val is None:
             self.phaseSelect.undo()
         else:
-            val = self.fixRange(abs(val), 0, 360)
+            val = self.fixRange(val, 0, 360)
             self.setPhase(val)
 
-    def __init__(self, chan_num, grid_layout, run_icon, stop_icon):
+    def __init__(self, chan_num, grid_layout, run_icon, stop_icon, conn):
         self.run_icon = run_icon
         self.stop_icon = stop_icon
-    
+        self.chan_num = chan_num
+        self.conn = conn
+        
         if chan_num == 0:
             GUI_OFFSET = 0
         elif chan_num == 1:
@@ -246,6 +262,7 @@ class Channal:
         self.phaseSelect = QLineEdit()
         self.setPhase(float(0))
         self.phaseSelect.editingFinished.connect(self.updatePhase)
+        
         #self.phaseSelect.setEnabled(False)
        
         self.arb_file_label = QtWidgets.QLabel('No file selected')
@@ -284,6 +301,7 @@ class Channal:
         grid_layout.addWidget(self.arb_file_button, GUI_OFFSET + 7, 6, 1, 1)
         grid_layout.addWidget(self.run_stop, GUI_OFFSET + 8, 5, 1, 2)
         
+        self.update_dropdown()
         self.toggleRunningStatus()
         self.initDone = True
         self.generate_waveform()

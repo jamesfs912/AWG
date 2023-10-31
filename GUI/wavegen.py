@@ -1,6 +1,6 @@
 import numpy as np
 
-def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, duty = 50, phase = 0, offset = 0,  timeRange = 1, clamp = None):
+def generateSamples(type = "sine", numSamples = 1024, amplitude = 5, arbitrary_waveform = None, duty = 50, phase = 0, offset = 0,  timeRange = 1, clamp = None):
     if type == 'arbitrary':
         if arbitrary_waveform:
             t = np.linspace(0, 1, len(arbitrary_waveform), endpoint=False)
@@ -14,7 +14,7 @@ def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, duty
         phase = float(phase)
         duty = float(duty)
         
-        t = np.mod(t + phase / 360, 1)
+        t = np.mod(t + phase, 1)
         
         if type == 'sine':
             y =  np.sin(2 * np.pi * t)
@@ -30,8 +30,9 @@ def generateSamples(type, numSamples, amplitude, arbitrary_waveform = None, duty
             t = np.mod(t + 0.5, 1)
             y = np.mod(t * 2, 2) - 1
         elif type == "dc":
-            amplitude = 0
-            y = np.ones(numSamples)
+            y = np.zeros(numSamples)
+        else:
+            print("bad wavetype")
         
     tt = tt * timeRange
     y = y * amplitude + offset

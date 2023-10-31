@@ -21,12 +21,13 @@ typedef struct {
         } PACK HandShake;
         struct { // packet_type = 1
             uint8_t channel;
-            uint8_t temp;
             uint8_t gain;
+            //uint8_t temp;
             uint16_t PSC;
             uint16_t ARR;
             uint16_t CCR_offset;
             uint16_t numSamples;
+            uint16_t phaseARR;
         } PACK AWG_SET;
     } PACK Content;
 } PACK RECV_Packet;

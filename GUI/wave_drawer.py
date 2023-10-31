@@ -165,12 +165,11 @@ class AppWindow(QtWidgets.QWidget):
 
     def generate_preset(self):
         type = self.waveform_type
-        amp = 1
+
         if type == "line":
-            type = "testdc"
-            amp = 0
+            type = "dc"
         
-        res = generateSamples(type, len(tValues), amp)
+        res = generateSamples(type = type, numSamples = len(tValues), amplitude = 1)
         samples = res[2]
         self.pl.setSamples(samples)
         

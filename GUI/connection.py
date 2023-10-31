@@ -85,8 +85,8 @@ class Connection:
         while(len(bytes) % 64 != 0):
             bytes += [0]
         return bytes
-    
-    def sendWave(self, chan, freq, wave_type, amplitude, offset, arbitrary_waveform = None, forceGain = -1):
+        
+    def sendWave(self, chan, freq = 1e3, wave_type = "sin", amplitude = 5, offset = 0, arbitrary_waveform = None, duty = 50, phase = 0, forceGain = -1):
         if not(self.connected):
             return
     
@@ -99,14 +99,16 @@ class Connection:
         gain_amp = [5, 0.5]
     
         #which gain to use?
-        #print(amplitude)
+        #print(amplitude)        
         if forceGain == -1:
             gain = 0 if abs(amplitude) > 0.5 else 1
         else:
             gain = forceGain
 			
         #calculate offset CCR value
-        CCR_offset = max(min(math.floor((-offset + offset_amp) / (offset_amp * 2) * PWM_ARR), PWM_ARR), 0)
+        offset_pwm = max(min(offset, 5), -5)
+        CCR_offset = max(min(math.floor((-offset_pwm + offset_amp) / (offset_amp * 2) * PWM_ARR), PWM_ARR), 0)
+        offset_dac = offset - offset_pwm
         
         #calculate number of samples to use, and the optimal sample period (skips)
         skipGoal = 25
@@ -128,15 +130,22 @@ class Connection:
        # print("asd ", fclk / numSamples / skips_act)
         #calculate samples 
         dac_scale = (2**dac_bits) / 2
-        samples = generateSamples(wave_type, numSamples, amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform, dac_scale, clamp = [0, 2**dac_bits - 1])
+        
+        phase_clocks = numSamples * (ARR + 1) * phase
+        phase_samples = phase_clocks / (ARR + 1) / numSamples
+        phase_arr = int(phase_clocks) % (ARR + 1)
+        print(phase, phase_clocks, phase_samples, phase_arr)
+        
+        samples = generateSamples(type = wave_type, numSamples = numSamples, amplitude = amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform = arbitrary_waveform, duty = duty, phase = phase_samples, offset = dac_scale + offset_dac / gain_amp[gain] * dac_scale, clamp = [0, 2**dac_bits - 1])
         samples = samples[2]
         
-        #print(f"CCR_offset : {CCR_offset} gain_amp: {gain_amp[gain]}")
-        #print(f"numSamples : {numSamples} skips opt: {skips}")
-        #print(f"PSC : {PSC} ARR: {ARR}, skips act: {skips_act}")
-        #print(f"error skips_opt: {error(freq, skips, fclk, numSamples)}%")     
-        #print(f"error skips_act: {error(freq, skips_act, fclk, numSamples)}%")     
-        bytes = pack("BBBBHHHH52x", 1, chan, 0, gain, PSC, ARR, CCR_offset, numSamples)
+        print(f"CCR_offset : {CCR_offset} gain_amp: {gain_amp[gain]}")
+        print(f"numSamples : {numSamples} skips opt: {skips}")
+        print(f"PSC : {PSC} ARR: {ARR}, skips act: {skips_act}")
+        print(f"error skips_opt: {error(freq, skips, fclk, numSamples)}%")     
+        print(f"error skips_act: {error(freq, skips_act, fclk, numSamples)}%")     
+        
+        bytes = pack("<BBBHHHHH51x", 1, chan, gain, PSC, ARR, CCR_offset, numSamples, phase_arr)
         sample_bytes = samplesToBytes(samples)
         assert len(bytes) % 64 == 0
         bytes += sample_bytes
@@ -144,7 +153,6 @@ class Connection:
         
     def tryConnect(self):
         if self.connected:
-            print("Shouldn't be here")
             return
             
         portName = None

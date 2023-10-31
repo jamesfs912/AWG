@@ -28,6 +28,9 @@ void SendAck(){
     }
 }
 
+uint16_t numSamples[AWG_NUM_CHAN];
+uint16_t phaseARR[AWG_NUM_CHAN];
+
 void GotCDC_64B_Packet(char *ptr) {
 
     if (!BULK_BUFF_RECV) {
@@ -48,10 +51,14 @@ void GotCDC_64B_Packet(char *ptr) {
             uint16_t PSC = packet->Content.AWG_SET.PSC;
             uint16_t ARR = packet->Content.AWG_SET.ARR;
             uint16_t CCR_offset = packet->Content.AWG_SET.CCR_offset;
-            uint32_t numSamples = packet->Content.AWG_SET.numSamples;
+            numSamples[chan] = packet->Content.AWG_SET.numSamples;
+            phaseARR[chan] = packet->Content.AWG_SET.phaseARR;
             uint8_t gain = packet->Content.AWG_SET.gain;
 
-            BULK_BUFF_RECV = numSamples < 32 ? 128 : numSamples*2;
+
+
+
+            BULK_BUFF_RECV = numSamples[chan] < 32 ? 128 : numSamples[chan] *2;
             BULK_BUFF = (uint8_t *) awg_lut[chan];
 
             if(chan == 0){
@@ -59,28 +66,44 @@ void GotCDC_64B_Packet(char *ptr) {
             	TIM6->ARR = ARR;
             	TIM6->PSC = PSC;
 
-
-                HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
-                HAL_TIM_Base_Stop(&htim6);
-                HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)awg_lut[0], numSamples, DAC_ALIGN_12B_R);
-                HAL_TIM_Base_Start(&htim6);
-
             	HAL_GPIO_WritePin(GAIN_C0_GPIO_Port, GAIN_C0_Pin, gain);
             }else{
             	TIM2->CCR2 = CCR_offset;
             	TIM7->ARR = ARR;
             	TIM7->PSC = PSC;
 
-
-                HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_2);
-                HAL_TIM_Base_Stop(&htim7);
-                HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*)awg_lut[1], numSamples, DAC_ALIGN_12B_R);
-                HAL_TIM_Base_Start(&htim7);
-
             	HAL_GPIO_WritePin(GAIN_C1_GPIO_Port, GAIN_C1_Pin, gain);
             }
 
+            //restart both channels to get correct phase
+        	//stop both timers (without using HAL_TIM_Base_Stop to prevent side effects)
+        	 __HAL_TIM_DISABLE(&htim6);
+        	 __HAL_TIM_DISABLE(&htim7);
 
+        	//restart both DMAs
+            HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+         	HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_2);
+        	HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)awg_lut[0], numSamples[0], DAC_ALIGN_12B_R);
+        	HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*)awg_lut[1], numSamples[1], DAC_ALIGN_12B_R);
+
+        	//set clock phase
+           TIM6->CNT = phaseARR[0];
+            TIM7->CNT = phaseARR[1];
+        	//TIM6->CNT = 0;
+        	//TIM7->CNT = 6;
+
+            //restart both timers (again without HAL_TIM_Base_Start).
+            //The generated asm code should enable both within two instruction
+            //this code is a bit loony and isn't perfectly synchronized anyway, use timer synchronization instead?
+            //see page 559 of
+            //https://www.st.com/resource/en/reference_manual/dm00043574-stm32f303xb-c-d-e-stm32f303x6-8-stm32f328x8-stm32f358xc-stm32f398xe-advanced-arm-based-mcus-stmicroelectronics.pdf
+            volatile uint32_t *CCR6_add = &(htim6.Instance->CR1);
+           	uint32_t CCR6_new = *CCR6_add | TIM_CR1_CEN;
+           	volatile uint32_t *CCR7_add = &(htim7.Instance->CR1);
+           	uint32_t CCR7_new = *CCR7_add | TIM_CR1_CEN;
+           	*CCR6_add = CCR6_new;
+ 			*CCR7_add = CCR7_new;
+ 			//restart of both channels complete
         }
     } else {
         memcpy(BULK_BUFF, ptr, 64);
