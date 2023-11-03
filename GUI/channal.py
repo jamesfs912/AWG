@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6 import QtGui
 from wavegen import generateSamples
+from aw import AW
 
 class Channal:
     def update_dropdown(self):
@@ -32,6 +33,16 @@ class Channal:
 
     def updateArb_Dropdown(self):
         self.arbitrary_waveform = self.dropdownArb.currentText().lower()
+        self.listAW = []
+        self.dropdownArb.clear()
+        f = open("saved.txt", "r")
+        for line in f:
+            self.dropdownArb.addItem(line[0: line.find(',')])
+            strArray = line[line.find('[') + 1: len(line) - 2]
+            strArray = strArray.split(", ")
+            arr = [float(val) for val in strArray]
+            self.listAW.append(AW(line[0: line.find(',')], arr))
+        self.dropdownArb.activated.connect(lambda: self.updateArb_Dropdown())
         self.generate_waveform()
 
     def toggleRunningStatus(self):
@@ -262,12 +273,18 @@ class Channal:
         self.arb_file_button.setEnabled(False)
         self.run_stop = QtWidgets.QPushButton()
         self.run_stop.clicked.connect(self.toggleRunningStatus)
-        
+
+        self.listAW = []
         self.dropdownArb = QComboBox()
-        self.dropdownArb.addItem('Custom 1')
-        self.dropdownArb.addItem('Custom 2')
+        f = open("saved.txt", "r")
+        for line in f:
+            self.dropdownArb.addItem(line[0: line.find(',')])
+            strArray = line[line.find('[') + 1: len(line) - 2]
+            strArray = strArray.split(", ")
+            arr = [float(val) for val in strArray]
+            self.listAW.append(AW(line[0: line.find(',')], arr))
         self.dropdownArb.activated.connect(lambda: self.updateArb_Dropdown())
-        self.dropdownArb.setEnabled(False)
+        #self.dropdownArb.setEnabled(False)
 
         self.dropdown = QComboBox()
         self.dropdown.addItem('Sine')
