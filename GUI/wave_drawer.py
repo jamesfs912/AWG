@@ -7,6 +7,7 @@ from pyqtgraph.dockarea import *
 from PyQt6.QtGui import QMouseEvent, QKeyEvent
 from PyQt6.QtWidgets import QComboBox, QPushButton, QLabel
 from wavegen import generateSamples
+from aw import AW
 
 tValues = []
 yValues = []
@@ -25,8 +26,7 @@ class MyPlotWidget(pg.PlotWidget):
         self.prevMouseClick = 0
 
         nextPoint = 0
-
-        while (nextPoint <= 1):
+        while nextPoint <= 1:
             tValues.append(nextPoint)
             yValues.append(0)
             nextPoint = round(nextPoint + 0.001, 3)
@@ -43,40 +43,52 @@ class MyPlotWidget(pg.PlotWidget):
             yVal = self.updateY(pos)
 
             if xVal in tValues:
-                yValues[tValues.index(xVal)] = yVal
-                self.prevMouseClick = tValues.index(xVal)
-                #self.clear()
-                #self.line = self.plot(tValues, t=yValues, pen='b')
+                yValues[int(xVal*1000)] = yVal
+                self.prevMouseClick = int(xVal*1000)
+                # self.clear()
+                # self.line = self.plot(tValues, t=yValues, pen='b')
 
                 self.am_drawing = True
 
     def mouseMoveEvent(self, event: QMouseEvent):
         global tValues, yValues
-        if self.am_drawing:
-            pos = self.plotItem.vb.mapSceneToView(event.position())
+        pos = self.plotItem.vb.mapSceneToView(event.position())
 
-            xVal = self.updateX(pos)
-            yVal = self.updateY(pos)
+        xVal = self.updateX(pos)
+        yVal = self.updateY(pos)
+        if self.am_drawing and xVal >= 0 and xVal <= 1:
 
-            currentMouseIndex = tValues.index(xVal)
-            if xVal in tValues:
+
+            if xVal in tValues and self.prevMouseClick < len(tValues):
+
+                currentMouseIndex = int(xVal * 1000)
+                y = yVal - yValues[self.prevMouseClick]
+                x = currentMouseIndex - self.prevMouseClick
+                if x != 0:
+                    slope = (y / x)
+                else:
+                    slope = y
+                count = 1
+                yStart = yValues[self.prevMouseClick]
+
                 if (currentMouseIndex - self.prevMouseClick) > 1:
 
                     # fill in a constant value for the missing samples.
-                    while (self.prevMouseClick <= currentMouseIndex + 1):
+                    while self.prevMouseClick <= currentMouseIndex + 1 and self.prevMouseClick < len(tValues)-1:
                         self.prevMouseClick = self.prevMouseClick + 1
-                        yValues[self.prevMouseClick] = yVal
+                        yValues[self.prevMouseClick] = yStart + count * slope
+                        count = count + 1
 
                         # tempY = tempY+slope
-                if (currentMouseIndex - self.prevMouseClick) < -1:
+                if (currentMouseIndex - self.prevMouseClick) < -1 and self.prevMouseClick < len(tValues)-1:
 
                     # fill in a constant value for the missing samples.
-                    while (self.prevMouseClick >= currentMouseIndex - 1):
+                    while self.prevMouseClick >= currentMouseIndex - 1 and self.prevMouseClick < len(tValues)-1:
                         self.prevMouseClick = self.prevMouseClick - 1
                         yValues[self.prevMouseClick] = yVal
 
                 self.prevMouseClick = currentMouseIndex
-                yValues[tValues.index(xVal)] = yVal
+                yValues[int(xVal*1000)] = yVal
                 self.clear()
                 self.line = self.plot(tValues, yValues, pen='b')
 
@@ -96,7 +108,8 @@ class MyPlotWidget(pg.PlotWidget):
         yVal = self.truncate(float(yVal), 3)
         return yVal
 
-    def truncate(self, number: float, digits: int) -> float:
+    @staticmethod
+    def truncate(number: float, digits: int) -> float:
         pow10 = 10 ** digits
         return number * pow10 // 1 / pow10
 
@@ -108,6 +121,12 @@ class MyPlotWidget(pg.PlotWidget):
             yValues.append(samples[i])
         self.line = self.plot(tValues, yValues, pen='b')
 
+    @staticmethod
+    def return_samples():
+        temp = []
+        for i in range(0, len(tValues)):
+            temp.append(yValues[i])
+        return temp
 
 class AppWindow(QtWidgets.QWidget):
 
@@ -116,6 +135,8 @@ class AppWindow(QtWidgets.QWidget):
         self.setWindowTitle('Waveform drawer')
         self.waveform_type = 'Line'
 
+        self.listAW = []
+
         self.pl = MyPlotWidget()
         self.init_dropdown()
         self.init_buttons()
@@ -123,9 +144,7 @@ class AppWindow(QtWidgets.QWidget):
 
         form = QtWidgets.QFormLayout()
 
-        self.samples = QtWidgets.QLineEdit()
         self.filename = QtWidgets.QLineEdit()
-        form.addRow("#Samples:", self.samples)
         form.addRow("Filename:", self.filename)
 
         vert = QtWidgets.QVBoxLayout()
@@ -133,8 +152,13 @@ class AppWindow(QtWidgets.QWidget):
         vert.addWidget(self.dropdown)
         vert.addWidget(self.gen_preset)
         vert.addSpacing(300)
+        vert.addWidget(QtWidgets.QLabel("Load/Delete Wave"))
+        vert.addWidget(self.stored_waves)
+        vert.addWidget(self.loadWave_button)
+
         vert.addLayout(form)
-        vert.addWidget(self.generate_csv)
+        vert.addWidget(self.addWave_button)
+        vert.addWidget(self.delWave_button)
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.pl)
@@ -145,7 +169,15 @@ class AppWindow(QtWidgets.QWidget):
     def init_buttons(self):
         self.gen_preset = QPushButton("Generate Preset")
         self.gen_preset.resize(200, 50)
-        self.generate_csv = QPushButton("Generate CSV")
+
+        self.addWave_button = QPushButton("Add Wave")
+        self.addWave_button.resize(200, 50)
+
+        self.delWave_button = QPushButton("Delete Wave")
+        self.delWave_button.resize(200, 50)
+
+        self.loadWave_button = QPushButton("Load Wave")
+        self.loadWave_button.resize(200, 50)
 
     def init_dropdown(self):
         self.dropdown = QComboBox(self)
@@ -155,10 +187,23 @@ class AppWindow(QtWidgets.QWidget):
         self.dropdown.addItem('Sawtooth')
         self.dropdown.addItem('Square')
 
+        self.stored_waves = QComboBox(self)
+        f = open("saved.txt", "r")
+        for line in f:
+            self.stored_waves.addItem(line[0: line.find(',')])
+            strArray = line[line.find('[') + 1: len(line) - 2]
+            strArray = strArray.split(", ")
+            arr = [float(val) for val in strArray]
+
+            self.listAW.append(AW(line[0: line.find(',')], arr))
+
     def init_connections(self):
         self.dropdown.activated.connect(lambda: self.update_dropdown())
         self.gen_preset.clicked.connect(self.generate_preset)
-        self.generate_csv.clicked.connect(self.save_waveform)
+
+        self.addWave_button.clicked.connect(self.addAW)
+        self.delWave_button.clicked.connect(self.deleteAW)
+        self.loadWave_button.clicked.connect(self.load_wave)
 
     def update_dropdown(self):
         self.waveform_type = self.dropdown.currentText().lower()
@@ -168,12 +213,44 @@ class AppWindow(QtWidgets.QWidget):
 
         if type == "line":
             type = "dc"
-        
-        res = generateSamples(type = type, numSamples = len(tValues), amplitude = 1)
+
+        res = generateSamples(type=type, numSamples=len(tValues), amplitude=1)
         samples = res[2]
         self.pl.setSamples(samples)
-        
-    def save_waveform(self):
-        global tValues, yValues
 
+    # functions for new method of saving drawn waves
+
+    def load_wave(self):
+        global tValues, yValues
+        yValues = []
+        for a in self.listAW:
+
+            if a.filename == self.stored_waves.currentText():
+                self.pl.clear()
+                for i in range(0, len(tValues)):
+                    yValues.append(a.samples[i])
+                self.pl.line = self.pl.plot(tValues, yValues, pen='b')
+
+    def addAW(self):
+
+        temp = self.pl.return_samples()
+        self.stored_waves.addItem(self.filename.text())
+        self.listAW.append(AW(self.filename.text(), temp))
+
+        self.generate_listAW_file()
+
+    def deleteAW(self):
+        self.stored_waves.removeItem(self.stored_waves.currentIndex())
+        for a in self.listAW:
+            if a.filename == self.stored_waves.currentText():
+                self.listAW.remove(a)
+
+        self.generate_listAW_file()
+
+    def generate_listAW_file(self):
+
+        with open('saved.txt', 'w', newline='') as f:
+            for i in self.listAW:
+                f.write(i.filename + ", " + str(i.samples))
+                f.write('\n')
 
