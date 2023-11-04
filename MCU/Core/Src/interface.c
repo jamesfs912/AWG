@@ -30,6 +30,7 @@ void SendAck(){
 
 uint16_t numSamples[AWG_NUM_CHAN];
 uint16_t phaseARR[AWG_NUM_CHAN];
+uint16_t ARR_hold[AWG_NUM_CHAN];
 
 void GotCDC_64B_Packet(char *ptr) {
 
@@ -65,13 +66,14 @@ void GotCDC_64B_Packet(char *ptr) {
             	TIM2->CCR1 = CCR_offset;
             	TIM6->ARR = ARR;
             	TIM6->PSC = PSC;
-
+            	ARR_hold[0] = ARR;
             	HAL_GPIO_WritePin(GAIN_C0_GPIO_Port, GAIN_C0_Pin, gain);
             }else{
             	TIM2->CCR2 = CCR_offset;
             	TIM7->ARR = ARR;
             	TIM7->PSC = PSC;
 
+            	ARR_hold[1] = ARR;
             	HAL_GPIO_WritePin(GAIN_C1_GPIO_Port, GAIN_C1_Pin, gain);
             }
 
@@ -86,17 +88,19 @@ void GotCDC_64B_Packet(char *ptr) {
         	HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*)awg_lut[0], numSamples[0], DAC_ALIGN_12B_R);
         	HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_2, (uint32_t*)awg_lut[1], numSamples[1], DAC_ALIGN_12B_R);
 
+        	//reset counters, otherwise prescale counter value can mess up wphase
+        	TIM6 -> EGR = TIM_EGR_UG;
+        	TIM7 -> EGR = TIM_EGR_UG;
+
         	//set clock phase
-           TIM6->CNT = phaseARR[0];
-            TIM7->CNT = phaseARR[1];
+           TIM6->CNT = phaseARR[0] - ARR_hold[1];
+            TIM7->CNT = phaseARR[1] - ARR_hold[0];
         	//TIM6->CNT = 0;
         	//TIM7->CNT = 6;
 
             //restart both timers (again without HAL_TIM_Base_Start).
             //The generated asm code should enable both within two instruction
-            //this code is a bit loony and isn't perfectly synchronized anyway, use timer synchronization instead?
-            //see page 559 of
-            //https://www.st.com/resource/en/reference_manual/dm00043574-stm32f303xb-c-d-e-stm32f303x6-8-stm32f328x8-stm32f358xc-stm32f398xe-advanced-arm-based-mcus-stmicroelectronics.pdf
+            //this code is a bit loony and isn't perfectly synchronized anyway
             volatile uint32_t *CCR6_add = &(htim6.Instance->CR1);
            	uint32_t CCR6_new = *CCR6_add | TIM_CR1_CEN;
            	volatile uint32_t *CCR7_add = &(htim7.Instance->CR1);

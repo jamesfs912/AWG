@@ -21,24 +21,25 @@ def error(f_target, skips, fclk, samples):
 class Connection:
         
     def sendHandShakePacket(self):
+        if self.status == "disconnected":
+            return
         print("sending handshake packet")
         bytes = pack("B4B59x", 0, ord('I'), ord('N'), ord('I'), ord('T'))
         assert len(bytes) == 64
         self.sendQ.put(bytes)
         
     def read_disconnect(self, msg):
-        if self.connected:
-            self.connected = False
+        if self.status != "disconnected":
+            self.status = "disconnected"
             self.statusCallback.emit("disconnected", msg)
             self.ser.close()
                     
     def read_funct(self):
         timeouts = 0
-        while self.connected:
+        while self.status != "disconnected":
             try:
                 buff = self.ser.read(64)
             except:
-                print("foo")
                 buff = None
                 self.read_disconnect("Connection Disconnected")
                 break
@@ -55,11 +56,13 @@ class Connection:
             else:
                 if(buff[0:9] == bytes("\0STMAWG23", "ascii")):
                     timeouts = 0
-                    self.statusCallback.emit("connected", None)
+                    if self.status == "connecting":
+                        self.statusCallback.emit("connected", None)
+                    self.status = "connected"
                     print("got ack")
                     #self.gotAck = True
                 else:
-                    self.connected = False
+                    self.status = "disconnected"
                     self.sendQ.put(None)
                     self.statusCallback.emit("disconnected", "Bad packet")
         self.sendQ.put(None)
@@ -67,7 +70,7 @@ class Connection:
                 
             
     def write_funct(self):
-        while self.connected:
+        while self.status != "disconnected":
             packet = self.sendQ.get()
             if packet:
                 try:
@@ -77,8 +80,8 @@ class Connection:
         print("write close")
         
     def close(self):
-        if self.connected:
-            self.connected = False
+        if self.status != "disconnected":
+            self.status = "disconnected"
             self.ser.close()
 
     def up64(self, bytes):
@@ -87,7 +90,7 @@ class Connection:
         return bytes
         
     def sendWave(self, chan, freq = 1e3, wave_type = "sin", amplitude = 5, offset = 0, arbitrary_waveform = None, duty = 50, phase = 0, forceGain = -1):
-        if not(self.connected):
+        if self.status == "disconnected":
             return
     
         #move constants to init or something
@@ -101,7 +104,10 @@ class Connection:
         #which gain to use?
         #print(amplitude)        
         if forceGain == -1:
-            gain = 0 if abs(amplitude) > 0.5 else 1
+            if wave_type == "dc":
+                gain = 0
+            else:
+                gain = 0 if abs(amplitude) > 0.5 else 1
         else:
             gain = forceGain
 			
@@ -111,12 +117,16 @@ class Connection:
         offset_dac = offset - offset_pwm
         
         #calculate number of samples to use, and the optimal sample period (skips)
-        skipGoal = 25
-        max_samples = 1024*4
-        numSamples = max_samples
-        while (skips := getSkips(freq, numSamples, fclk)) < skipGoal:     
-            #print(f"numSamples : {numSamples} skips: {skips}")
-            numSamples /= 2
+        if wave_type == "dc": 
+            numSamples = 2
+            freq = 1e2
+        else:
+            skipGoal = 25
+            max_samples = 1024*4
+            numSamples = max_samples
+            while (skips := getSkips(freq, numSamples, fclk)) < skipGoal:     
+                #print(f"numSamples : {numSamples} skips: {skips}")
+                numSamples /= 2
         skips = getSkips(freq, numSamples, fclk)
         numSamples = int(numSamples)
         
@@ -133,7 +143,18 @@ class Connection:
         
         phase_clocks = numSamples * (ARR + 1) * phase
         phase_samples = phase_clocks / (ARR + 1) / numSamples
-        phase_arr = int(phase_clocks) % (ARR + 1)
+        phase_arr = 0
+        if chan == 1:
+            pass
+            #phase_arr += 6 // (PSC + 1)
+        ##if PSC == 0:
+        ##    phase_arr += int(phase_clocks) 
+        #phase_arr += int(phase_clocks / (PSC + 1)) 
+        
+        #phase_arr += ARR
+        phase_arr = phase_arr % (ARR + 1)
+        
+        
         print(phase, phase_clocks, phase_samples, phase_arr)
         
         samples = generateSamples(type = wave_type, numSamples = numSamples, amplitude = amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform = arbitrary_waveform, duty = duty, phase = phase_samples, offset = dac_scale + offset_dac / gain_amp[gain] * dac_scale, clamp = [0, 2**dac_bits - 1])
@@ -152,7 +173,7 @@ class Connection:
         self.sendQ.put(bytes)
         
     def tryConnect(self):
-        if self.connected:
+        if self.status != "disconnected":
             return
             
         portName = None
@@ -190,7 +211,7 @@ class Connection:
             self.statusCallback.emit("disconnected", "unable to open port")
             return
         
-        self.connected = True
+        self.status = "connecting"
         
         self.sendQ = Queue()
         self.sendHandShakePacket()
@@ -202,6 +223,5 @@ class Connection:
         self.read_thread.start()
         
     def __init__(self, statusCallback):
-        self.connected = False
-        #self.gotAck = False
+        self.status = "disconnected"
         self.statusCallback = statusCallback
