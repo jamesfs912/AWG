@@ -310,7 +310,7 @@ if __name__ == '__main__':
     waveform_generator.show()
     waveform_generator.connectButtonClicked()
 
-    drawer_window = wave_drawer.AppWindow()
+    drawer_window = wave_drawer.AppWindow(waveform_generator.channels[0], waveform_generator.channels[1])
     app.exec()
 
     sys.exit()
