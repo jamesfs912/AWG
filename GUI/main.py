@@ -101,11 +101,11 @@ class WaveformGenerator(QtWidgets.QWidget):
 
         # Theme Dropdown
         self.themeDropdown = QtWidgets.QComboBox()
-        self.themeDropdown.addItems(['Default', 'Light Mode', 'Dark Mode'])
+        self.themeDropdown.addItems(['Default', 'Blue Mode', 'Dark Mode'])
         self.themeDropdown.currentTextChanged.connect(self.onThemeChange)
 
         # Custom width dropdown menu
-        self.themeDropdown.view().setFixedWidth(100)
+        self.themeDropdown.view().setFixedWidth(125)
         themeLayout.addWidget(self.themeDropdown)
 
 
@@ -321,16 +321,17 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.conn.close()
         
     def defaultTheme(self):
+        #app.setStyle("windowsvista")
         app.setStyleSheet("""
             QWidget {
                 font-family: 'Verdana', sans-serif;
                 font-size: 12px;
                 color: #000000;
-                background-color: #ffffff;  /* Set a neutral background color */
+                background-color: #ffffff;  
             }
 
             QLineEdit, QComboBox, QTextEdit {
-                border: 1px solid #000; /* Use a standard border */
+                border: 1px solid #000; 
                 padding: 2px;
                 background-color: #FFFFFF;
                 color: #000000;
@@ -339,8 +340,8 @@ class WaveformGenerator(QtWidgets.QWidget):
             QPushButton {
                 font-family: 'Verdana', sans-serif;
                 color: #000000;
-                background-color: #E0E0E0;  /* Neutral background color */
-                border: 1px solid #000; /* Standard border */
+                background-color: #E0E0E0;  
+                border: 1px solid #000; 
                 padding: 5px 10px;
             }""")
 
