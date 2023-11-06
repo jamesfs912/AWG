@@ -19,7 +19,7 @@ from connection import Connection
 from pyqtgraph.Qt import QtCore, QtWidgets
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QLineEdit, QPushButton, QVBoxLayout, QMessageBox,QComboBox
+    QApplication, QWidget, QLineEdit, QToolBar, QPushButton, QVBoxLayout, QFrame, QLabel, QMessageBox,QComboBox
 )
 from PyQt6 import QtGui
 from wavegen import generateSamples
@@ -61,7 +61,7 @@ class WaveformGenerator(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Waveform Generator')
-	    
+        
         self.grid_layout = QtWidgets.QGridLayout()
         
         self.theme()
@@ -92,16 +92,41 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.connectButton.setEnabled(False)
         self.grid_layout.addWidget(self.connectButton, 19, 1, 1, 1)
         self.connectButton.clicked.connect(self.connectButtonClicked)
-         
 
+        # Theme H Layout
+        themeLayout = QtWidgets.QHBoxLayout()
+
+        # Dropdown label
+        themeLabel = QtWidgets.QLabel("Theme:")
+        themeLayout.addWidget(themeLabel)
+
+        # Theme Dropdown
+        self.themeDropdown = QtWidgets.QComboBox()
+        self.themeDropdown.addItems(['Light Mode', 'Dark Mode'])
+        self.themeDropdown.currentTextChanged.connect(self.onThemeChange)
+        themeLayout.addWidget(self.themeDropdown)
+
+
+        self.grid_layout.addLayout(themeLayout, 19, 2, 1, 1)
+
+        # # Theme Dropdown
+        # self.themeDropdown = QComboBox()
+        # self.themeDropdown.addItem('Light Mode')
+        # self.themeDropdown.addItem('Dark Mode')
+        # self.themeDropdown.currentTextChanged.connect(self.onThemeChange)
+
+        # # Theme Dropdown grid
+        # self.grid_layout.addWidget(self.themeDropdown, 19, 2, 1, 1)
 
         for i in range(1, 6):
             self.grid_layout.setColumnStretch(i, 1)
         
         for i in range(0, 16):
             self.grid_layout.setRowStretch(i, 1)
-            
+      
         self.setLayout(self.grid_layout)
+
+        self.lightMode()
 
 #    def init_restraints(self):
 #        #Hardware restraints
@@ -304,9 +329,144 @@ class WaveformGenerator(QtWidgets.QWidget):
         #light_palette.setColor(light_palette.ColorRole.Window, Qt.GlobalColor.white)  # Background color
         #light_palette.setColor(light_palette.ColorRole.WindowText, Qt.GlobalColor.black)  # Text color
 
+    def onThemeChange(self, text):
+        if text == "Light Mode":
+            self.lightMode()
+        elif text == "Dark Mode":
+            self.darkMode()
+
+    def lightMode(self):
+        app.setStyleSheet("""
+            QWidget {
+                font-family: 'Verdana', sans-serif;
+                font-size: 12px;
+                color: #000000;
+                background-color: #0F3E62; 
+            }
+
+            QLineEdit, QComboBox, QTextEdit {
+                border: 1px solid #105C8D; 
+                padding: 2px;
+                background-color: #FFFFFF;
+                color: #000000;
+                border-radius: 2px; 
+            }
+
+            QPushButton {
+                font-family: 'Verdana', sans-serif;
+                color: #FFFFFF;
+                background-color: #1874CD; 
+                border-radius: 5px; 
+                padding: 5px 10px;
+                border: 1px solid #105C8D; 
+            }
+
+            QPushButton:hover {
+                background-color: #1C86EE; 
+            }
+
+            QPushButton:disabled {
+                background-color: #1874CD;
+                color: #FFFFFF;
+            }
+
+            QLabel {
+                color: #FFFFFF; 
+            }
+
+    
+            QLabel#freqLabel, #ampLabel, #offsetLabel, #dcLabel, #phaseLabel{
+                background-color: #1874CD; 
+                border: 2px solid #1874CD; 
+                border-radius: 5px; 
+                padding: 2px; 
+                color: white;
+            }
+            """)
+        pass
+
+    def darkMode(self):
+        app.setStyleSheet("""
+            QWidget {
+                font-family: 'Verdana', sans-serif; 
+                font-size: 12px;
+                color: #E0E0E0; 
+                background-color: #2C2C2C; 
+            }
+
+            QLineEdit, QComboBox, QTextEdit {
+                border: 1px solid #3C3C3C; 
+                padding: 2px;
+                background-color: #2E2E2E; 
+                color: #E0E0E0; 
+            }
+
+            QPushButton {
+                color: #FFFFFF; 
+                background-color: #32B58F; 
+                border-radius: 4px; 
+                padding: 5px 10px;
+                border: none; 
+            }
+
+            QPushButton:hover {
+                background-color: #2D9C8F; 
+            }
+
+            QPushButton:disabled {
+                background-color: #5E5E5E; 
+                color: #3C3C3C;
+            }
+
+            QLabel {
+                color: #E0E0E0; 
+            }
+
+            QCheckBox, QRadioButton {
+                color: #E0E0E0; 
+            }
+
+            QGroupBox {
+                border: 1px solid #3C3C3C; 
+                margin-top: 20px; 
+            }
+
+            QGroupBox::title {
+                color: #E0E0E0; 
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px 0 3px;
+            }
+
+            QSlider::groove:horizontal {
+                border: 1px solid #3C3C3C; 
+                height: 8px;
+                background: #2C2C2C;
+                margin: 2px 0;
+            }
+
+            QSlider::handle:horizontal {
+                background: #32B58F;
+                border: 1px solid #2C2C2C;
+                width: 18px;
+                margin: -2px 0;
+            }
+
+            QSlider::add-page:horizontal {
+                background: #555;
+            }
+
+            QSlider::sub-page:horizontal {
+                background: #32B58F;
+            }
+            """)
+        pass
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     waveform_generator = WaveformGenerator()
+
     waveform_generator.show()
     waveform_generator.connectButtonClicked()
 
