@@ -64,7 +64,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         
         self.grid_layout = QtWidgets.QGridLayout()
         
-        self.theme()
         self.setWindowIcon(QtGui.QIcon(resource_path("icon/icon.ico")))
         run_icon = QtGui.QIcon(resource_path("icon/run.png"))
         stop_icon = QtGui.QIcon(resource_path("icon/stop.png"))
@@ -102,8 +101,11 @@ class WaveformGenerator(QtWidgets.QWidget):
 
         # Theme Dropdown
         self.themeDropdown = QtWidgets.QComboBox()
-        self.themeDropdown.addItems(['Light Mode', 'Dark Mode'])
+        self.themeDropdown.addItems(['Default', 'Light Mode', 'Dark Mode'])
         self.themeDropdown.currentTextChanged.connect(self.onThemeChange)
+
+        # Custom width dropdown menu
+        self.themeDropdown.view().setFixedWidth(100)
         themeLayout.addWidget(self.themeDropdown)
 
 
@@ -126,7 +128,7 @@ class WaveformGenerator(QtWidgets.QWidget):
       
         self.setLayout(self.grid_layout)
 
-        self.lightMode()
+        self.defaultTheme()
 
 #    def init_restraints(self):
 #        #Hardware restraints
@@ -318,22 +320,38 @@ class WaveformGenerator(QtWidgets.QWidget):
     def closeEvent(self, event):
         self.conn.close()
         
-    def theme(self):
-        app.setStyle("fusion")
-        light_palette = app.palette()
-        
-        # Create a custom light theme palette
-        light_palette = app.palette()
-        
-        # Set background and text colors for light theme
-        #light_palette.setColor(light_palette.ColorRole.Window, Qt.GlobalColor.white)  # Background color
-        #light_palette.setColor(light_palette.ColorRole.WindowText, Qt.GlobalColor.black)  # Text color
+    def defaultTheme(self):
+        app.setStyleSheet("""
+            QWidget {
+                font-family: 'Verdana', sans-serif;
+                font-size: 12px;
+                color: #000000;
+                background-color: #ffffff;  /* Set a neutral background color */
+            }
+
+            QLineEdit, QComboBox, QTextEdit {
+                border: 1px solid #000; /* Use a standard border */
+                padding: 2px;
+                background-color: #FFFFFF;
+                color: #000000;
+            }
+
+            QPushButton {
+                font-family: 'Verdana', sans-serif;
+                color: #000000;
+                background-color: #E0E0E0;  /* Neutral background color */
+                border: 1px solid #000; /* Standard border */
+                padding: 5px 10px;
+            }""")
 
     def onThemeChange(self, text):
+
         if text == "Light Mode":
             self.lightMode()
         elif text == "Dark Mode":
             self.darkMode()
+        elif text == "Default":
+            self.defaultTheme()
 
     def lightMode(self):
         app.setStyleSheet("""
