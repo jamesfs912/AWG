@@ -82,6 +82,13 @@ class Channal:
             self.on_off_label.setText("OFF")
             self.on_off_label.setColor((255, 0, 0))
 
+    def updateAWList(self, AWlist):
+        self.listAW = AWlist
+        self.dropdownArb.clear()
+        for aw in self.listAW:
+            self.dropdownArb.addItem(aw.filename)
+
+
     def __init__(self, chan_num, grid_layout, run_icon, stop_icon, conn):
         self.run_icon = run_icon
         self.stop_icon = stop_icon
@@ -98,6 +105,7 @@ class Channal:
         self.initDone = False
         self.arbitrary_waveform = None
         self.waveform_type = "sine"
+        self.listAW = []
         
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setMouseEnabled(x=False, y=False)
@@ -157,6 +165,8 @@ class Channal:
         
         self.arbwaveLabel = QtWidgets.QLabel("Arbitrary Wave:")
         self.dropdownArb = QComboBox()
+        for aw in self.listAW:
+            self.dropdownArb.addItem(aw.filename)
         #self.dropdown.activated.connect(self.blahblah)
         
         grid_layout.addWidget(self.plot_widget, GUI_OFFSET + 1, 0, 9, 5)
