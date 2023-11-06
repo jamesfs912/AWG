@@ -7,7 +7,6 @@ from struct import pack
 import os
 from queue import Queue
 import time 
-from PyQt6.QtCore import pyqtSignal
 
 DEBUG = True
 
