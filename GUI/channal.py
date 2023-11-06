@@ -41,11 +41,13 @@ class Channal:
         if self.running:
             self.run_stop.setText("Stop")
             self.run_stop.setIcon(self.stop_icon)
+            #self.run_stop.setStyleSheet("background-color : lightblue")
         else:
             self.run_stop.setText("Run")
             self.run_stop.setIcon(self.run_icon)
+            #self.run_stop.setStyleSheet("background-color : lightgrey")
         self.generate_waveform()
-    
+        
     def toggleRunningStatus(self):
         self.setRunningStatus(not self.running)
     
@@ -70,10 +72,10 @@ class Channal:
         self.guide_lines[1].setVisible(self.waveform_type != "dc")
         self.guide_lines[2].setVisible(self.waveform_type != "dc")
         
-        if self.running:
-            self.conn.sendWave(self.chan_num, freq = self.freqInput.value, wave_type = self.waveform_type, amplitude = self.ampInput.value, offset = self.offsetInput.value, arbitrary_waveform = None, duty = self.DSInput.value, phase = self.phaseInput.value / 360)
-        else:
-            self.conn.sendWave(self.chan_num, wave_type = "dc", offset = 0)
+        #if self.running:
+        #    self.conn.sendWave(self.chan_num, freq = self.freqInput.value, wave_type = self.waveform_type, amplitude = self.ampInput.value, offset = self.offsetInput.value, arbitrary_waveform = None, duty = self.DSInput.value, phase = self.phaseInput.value / 360)
+        #else:
+        #    self.conn.sendWave(self.chan_num, wave_type = "dc", offset = 0)
         
         if self.running:
             self.on_off_label.setText("ON")

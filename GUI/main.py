@@ -70,12 +70,17 @@ class WaveformGenerator(QtWidgets.QWidget):
         stop_icon = QtGui.QIcon(resource_path("icon/stop.png"))
         
         self.grid_layout.addWidget(QtWidgets.QLabel("Waveform generator"), 0, 0, 1, 1)
-        self.syncButton = QtWidgets.QPushButton("Sync")
+        
+        self.synced_status = QtWidgets.QLabel("Un Synced")
+        self.grid_layout.addWidget(self.synced_status, 0, 5, 1, 1)
+        #self.synced_status.setPixmap(stop_icon.pixmap())
+
+        self.syncButton = QtWidgets.QCheckBox  ("Attempt Sync")
         self.grid_layout.addWidget(self.syncButton, 0, 6, 1, 1)
         self.syncButton.clicked.connect(self.synButtonClicked)
 
-        self.open_drawer = QtWidgets.QPushButton('open sock drawer')
-        self.grid_layout.addWidget(self.open_drawer, 0, 5)
+        self.open_drawer = QtWidgets.QPushButton('open drawer')
+        self.grid_layout.addWidget(self.open_drawer, 0, 1)
         self.open_drawer.clicked.connect(self.fun_open_drawer)
  
         self.statusCallbackSignal.connect(self.statusCallback)
@@ -95,10 +100,10 @@ class WaveformGenerator(QtWidgets.QWidget):
          
 
 
-        for i in range(1, 6):
+        for i in range(1, 7):
             self.grid_layout.setColumnStretch(i, 1)
         
-        for i in range(0, 16):
+        for i in range(0, 19):
             self.grid_layout.setRowStretch(i, 1)
             
         self.setLayout(self.grid_layout)
