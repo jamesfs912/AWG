@@ -1,13 +1,11 @@
-import sys
-
-import numpy as np
-from PyQt6 import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
-from pyqtgraph.dockarea import *
-from PyQt6.QtGui import QMouseEvent, QKeyEvent
-from PyQt6.QtWidgets import QComboBox, QPushButton, QLabel
-from wavegen import generateSamples
+from PyQt6 import QtWidgets
+from PyQt6.QtGui import QMouseEvent
+from PyQt6.QtWidgets import QComboBox, QPushButton
+
+from channal import Channal
 from aw import AW
+from wavegen import generateSamples
 
 tValues = []
 yValues = []
@@ -43,8 +41,8 @@ class MyPlotWidget(pg.PlotWidget):
             yVal = self.updateY(pos)
 
             if xVal in tValues:
-                yValues[int(xVal*1000)] = yVal
-                self.prevMouseClick = int(xVal*1000)
+                yValues[int(xVal * 1000)] = yVal
+                self.prevMouseClick = int(xVal * 1000)
                 # self.clear()
                 # self.line = self.plot(tValues, t=yValues, pen='b')
 
@@ -57,7 +55,6 @@ class MyPlotWidget(pg.PlotWidget):
         xVal = self.updateX(pos)
         yVal = self.updateY(pos)
         if self.am_drawing and xVal >= 0 and xVal <= 1:
-
 
             if xVal in tValues and self.prevMouseClick < len(tValues):
 
@@ -74,21 +71,21 @@ class MyPlotWidget(pg.PlotWidget):
                 if (currentMouseIndex - self.prevMouseClick) > 1:
 
                     # fill in a constant value for the missing samples.
-                    while self.prevMouseClick <= currentMouseIndex + 1 and self.prevMouseClick < len(tValues)-1:
+                    while self.prevMouseClick <= currentMouseIndex + 1 and self.prevMouseClick < len(tValues) - 1:
                         self.prevMouseClick = self.prevMouseClick + 1
                         yValues[self.prevMouseClick] = yStart + count * slope
                         count = count + 1
 
                         # tempY = tempY+slope
-                if (currentMouseIndex - self.prevMouseClick) < -1 and self.prevMouseClick < len(tValues)-1:
+                if (currentMouseIndex - self.prevMouseClick) < -1 and self.prevMouseClick < len(tValues) - 1:
 
                     # fill in a constant value for the missing samples.
-                    while self.prevMouseClick >= currentMouseIndex - 1 and self.prevMouseClick < len(tValues)-1:
+                    while self.prevMouseClick >= currentMouseIndex - 1 and self.prevMouseClick < len(tValues) - 1:
                         self.prevMouseClick = self.prevMouseClick - 1
                         yValues[self.prevMouseClick] = yVal
 
                 self.prevMouseClick = currentMouseIndex
-                yValues[int(xVal*1000)] = yVal
+                yValues[int(xVal * 1000)] = yVal
                 self.clear()
                 self.line = self.plot(tValues, yValues, pen='b')
 
@@ -128,10 +125,14 @@ class MyPlotWidget(pg.PlotWidget):
             temp.append(yValues[i])
         return temp
 
+
 class AppWindow(QtWidgets.QWidget):
 
-    def __init__(self):
+    def __init__(self, channel1, channel2):
         super(AppWindow, self).__init__()
+
+        self.channel2 = channel2
+        self.channel1 = channel1
         self.setWindowTitle('Waveform drawer')
         self.waveform_type = 'Line'
 
@@ -141,6 +142,10 @@ class AppWindow(QtWidgets.QWidget):
         self.init_dropdown()
         self.init_buttons()
         self.init_connections()
+
+        #listAW initialized with dropdown
+        self.channel1.updateAWList(self.listAW)
+        self.channel2.updateAWList(self.listAW)
 
         form = QtWidgets.QFormLayout()
 
@@ -165,6 +170,8 @@ class AppWindow(QtWidgets.QWidget):
         layout.addLayout(vert)
 
         self.setLayout(layout)
+
+
 
     def init_buttons(self):
         self.gen_preset = QPushButton("Generate Preset")
@@ -239,13 +246,18 @@ class AppWindow(QtWidgets.QWidget):
 
         self.generate_listAW_file()
 
+        self.channel1.updateAWList(self.listAW)
+        self.channel2.updateAWList(self.listAW)
+
     def deleteAW(self):
-        self.stored_waves.removeItem(self.stored_waves.currentIndex())
         for a in self.listAW:
             if a.filename == self.stored_waves.currentText():
                 self.listAW.remove(a)
+        self.stored_waves.removeItem(self.stored_waves.currentIndex())
 
         self.generate_listAW_file()
+        self.channel1.updateAWList(self.listAW)
+        self.channel2.updateAWList(self.listAW)
 
     def generate_listAW_file(self):
 
