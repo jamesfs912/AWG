@@ -1,29 +1,31 @@
 import numpy as np
 
-def generateSamples(type = "sine", numSamples = 1024, amplitude = 5, arbitrary_waveform = None, duty = 50, phase = 0, offset = 0,  timeRange = 1, clamp = None):
+def generateSamples(type="sine", numSamples=1024, amplitude=5, arbitrary_waveform=None, duty=50, phase=0, offset=0,
+                    timeRange=1, clamp=None):
     if type == 'arbitrary':
         if arbitrary_waveform:
             t = np.linspace(0, 1, len(arbitrary_waveform), endpoint=False)
             y = arbitrary_waveform
+            return False, t, y
         else:
-            return (True, None, None) #indicate error
+            return True, None, None  # indicate error
     else:
         t = np.linspace(0, 1, numSamples, endpoint=False)
         tt = t
-        
+
         phase = float(phase)
         duty = float(duty)
-        
+
         t = np.mod(t + phase, 1)
-        
+
         if type == 'sine':
-            y =  np.sin(2 * np.pi * t)
+            y = np.sin(2 * np.pi * t)
         elif type == "triangle":
             t = np.mod(t + 0.25, 1)
             y = (np.mod(t * 2, 1) * -(np.floor(t * 2) * 2 - 1) + np.floor(t * 2)) * 2 - 1
         elif type == "square":
-            #y = np.floor(t * 2) * 2 - 1
-            #y[t >= int(duty)/100] = -1
+            # y = np.floor(t * 2) * 2 - 1
+            # y[t >= int(duty)/100] = -1
             y = np.ones(numSamples)
             y[t >= duty / 100] = -1
         elif type == "sawtooth":
@@ -33,17 +35,19 @@ def generateSamples(type = "sine", numSamples = 1024, amplitude = 5, arbitrary_w
             y = np.zeros(numSamples)
         else:
             print("bad wavetype")
-        
+
     tt = tt * timeRange
     y = y * amplitude + offset
     if clamp:
         np.clip(y, clamp[0], clamp[1], y)
     return (False, tt, y)
-    
+
+
 def samplesToBytes(samples):
     ns = len(samples)
     if ns % 64 != 0:
         add = 64 - (ns % 64)
-        samples = np.pad(samples, (0,add), 'constant', constant_values=(0,))
+        samples = np.pad(samples, (0, add), 'constant', constant_values=(0,))
 
-    return samples.astype(dtype = "<u2", casting='unsafe').tobytes()
+    return samples.astype(dtype="<u2", casting='unsafe').tobytes()
+'unsafe').tobytes()
