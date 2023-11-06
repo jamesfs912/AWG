@@ -9,6 +9,13 @@ from queue import Queue
 import time 
 from PyQt6.QtCore import pyqtSignal
 
+DEBUG = True
+
+def pd(*args, **kwargs):
+    if DEBUG:
+        __builtins__['print'](*args, **kwargs)
+print = pd
+
 def getSkips(freq, numSamples, fclk):
     return fclk / (freq * numSamples)
 

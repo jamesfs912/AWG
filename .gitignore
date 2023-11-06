@@ -8,3 +8,4 @@ MCU/Debug
 **/.DS_Store
 GUI/bin/build_garbage
 GUI/AWG.spec
+GUI/saved.txt

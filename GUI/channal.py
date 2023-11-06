@@ -2,7 +2,6 @@ import subprocess
 import math
 import numpy as np
 import pyqtgraph as pg
-from connection import Connection
 from pyqtgraph.Qt import QtCore, QtWidgets
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
@@ -13,6 +12,15 @@ from wavegen import generateSamples
 from connection import Connection
 from input_feild import Input
 
+class WaveSettings():
+    def __init__(self, type, freq, amp, offset, duty, phase):
+        self.type = type
+        self.freq = freq
+        self.amp = amp
+        self.offset = offset
+        self.duty = duty
+        self.phase = phase
+
 class Channal:
     def update_dropdown(self):
         self.waveform_type = self.dropdown.currentText().lower()
@@ -20,19 +28,19 @@ class Channal:
             self.freqInput.setEnabled(True)
             self.ampInput.setEnabled(True)
             self.offsetInput.setEnabled(True)
-            self.DSInput.setEnabled(True)
+            self.dutyInput.setEnabled(True)
             self.phaseInput.setEnabled(True)
         elif(self.waveform_type == 'dc'):
             self.freqInput.setEnabled(False)
             self.ampInput.setEnabled(False)
             self.offsetInput.setEnabled(True)
-            self.DSInput.setEnabled(False)
+            self.dutyInput.setEnabled(False)
             self.phaseInput.setEnabled(False)
         else:
             self.freqInput.setEnabled(True)
             self.ampInput.setEnabled(True)
             self.offsetInput.setEnabled(True)
-            self.DSInput.setEnabled(False)
+            self.dutyInput.setEnabled(False)
             self.phaseInput.setEnabled(True)
         self.generate_waveform()
 
@@ -47,9 +55,6 @@ class Channal:
             self.run_stop.setIcon(self.run_icon)
             #self.run_stop.setStyleSheet("background-color : lightgrey")
         self.generate_waveform()
-        
-    def toggleRunningStatus(self):
-        self.setRunningStatus(not self.running)
     
     def generate_waveform(self):
         if not self.initDone:
@@ -57,7 +62,7 @@ class Channal:
             
         #Different waveform generations based on waveform type
         tr = 1 / self.freqInput.value
-        samples = generateSamples(self.waveform_type, 1000, self.ampInput.value, self.arbitrary_waveform, self.DSInput.value, self.phaseInput.value / 360, offset = self.offsetInput.value, timeRange = tr, clamp = [-10, 10])
+        samples = generateSamples(self.waveform_type, 1000, self.ampInput.value, self.arbitrary_waveform, self.dutyInput.value, self.phaseInput.value / 360, offset = self.offsetInput.value, timeRange = tr, clamp = [-10, 10])
         if samples[0]:
             pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
              
@@ -72,10 +77,15 @@ class Channal:
         self.guide_lines[1].setVisible(self.waveform_type != "dc")
         self.guide_lines[2].setVisible(self.waveform_type != "dc")
         
-        #if self.running:
-        #    self.conn.sendWave(self.chan_num, freq = self.freqInput.value, wave_type = self.waveform_type, amplitude = self.ampInput.value, offset = self.offsetInput.value, arbitrary_waveform = None, duty = self.DSInput.value, phase = self.phaseInput.value / 360)
-        #else:
-        #    self.conn.sendWave(self.chan_num, wave_type = "dc", offset = 0)
+        if self.running:
+            self.waveSettings = WaveSettings(type = self.waveform_type, freq = self.freqInput.value, amp = self.ampInput.value, offset = self.offsetInput.value, duty = self.dutyInput.value, phase = self.phaseInput.value / 360)
+            #self.conn.sendWave(self.chan_num, freq = self.freqInput.value, wave_type = self.waveform_type, amplitude = self.ampInput.value, offset = self.offsetInput.value, arbitrary_waveform = None, duty = self.dutyInput.value, phase = self.phaseInput.value / 360)
+        else:
+            self.waveSettings = WaveSettings(type = "dc", freq = 1e3, amp = 5, offset = 0, duty = 0, phase = 0)
+            #self.conn.sendWave(self.chan_num, wave_type = "dc", offset = 0)
+        
+        if self.allowUpdates:
+            self.updateWave(self.chan_num)
         
         if self.running:
             self.on_off_label.setText("ON")
@@ -84,27 +94,31 @@ class Channal:
             self.on_off_label.setText("OFF")
             self.on_off_label.setColor((255, 0, 0))
 
+    def enableUpdates(self):
+        self.allowUpdates = True
+        self.updateWave(self.chan_num)
+        
     def updateAWList(self, AWlist):
         self.listAW = AWlist
         self.dropdownArb.clear()
         for aw in self.listAW:
             self.dropdownArb.addItem(aw.filename)
 
-
-    def __init__(self, chan_num, grid_layout, run_icon, stop_icon, conn):
+    def __init__(self, chan_num, grid_layout, run_icon, stop_icon, updateWave):
         self.run_icon = run_icon
         self.stop_icon = stop_icon
         self.chan_num = chan_num
-        self.conn = conn
+        self.updateWave = updateWave
         
         if chan_num == 0:
             GUI_OFFSET = 0
         elif chan_num == 1:
             GUI_OFFSET = 9
    
-        self.running = True #this will be toggled to False before we leave init()
+       # self.running = True #this will be toggled to False before we leave init()
         
         self.initDone = False
+        self.allowUpdates = False
         self.arbitrary_waveform = None
         self.waveform_type = "sine"
         self.listAW = []
@@ -147,13 +161,13 @@ class Channal:
         self.offsetInput = Input(self.generate_waveform, [-10, 10], float(0), "v", prefixes_v)
 
         self.DCLabel = QtWidgets.QLabel("Duty Cycle:")
-        self.DSInput = Input(self.generate_waveform, [0, 100], float(50), "%", [])
+        self.dutyInput = Input(self.generate_waveform, [0, 100], float(50), "%", [])
         
         self.phaseLabel = QtWidgets.QLabel("Phase (Deg):")
         self.phaseInput = Input(self.generate_waveform, [0, 360], float(0), "deg", [])
        
         self.run_stop = QtWidgets.QPushButton()
-        self.run_stop.clicked.connect(self.toggleRunningStatus)
+        self.run_stop.clicked.connect(lambda: self.setRunningStatus(not self.running))
         
         self.wavetypeLabel = QtWidgets.QLabel("Wave type")
         self.dropdown = QComboBox()
@@ -189,7 +203,7 @@ class Channal:
         grid_layout.addWidget(self.dropdownArb, GUI_OFFSET + 8, 6, 1, 1)
         
         grid_layout.addWidget(self.DCLabel, GUI_OFFSET + 5, 5, 1, 1)
-        grid_layout.addWidget(self.DSInput, GUI_OFFSET + 5, 6, 1, 1)
+        grid_layout.addWidget(self.dutyInput, GUI_OFFSET + 5, 6, 1, 1)
         grid_layout.addWidget(self.phaseLabel, GUI_OFFSET + 6, 5, 1, 1)
         grid_layout.addWidget(self.phaseInput, GUI_OFFSET + 6, 6, 1, 1)
         
@@ -197,6 +211,6 @@ class Channal:
         grid_layout.addWidget(self.run_stop, GUI_OFFSET + 9, 5, 1, 2)
         
         self.update_dropdown()
-        self.toggleRunningStatus()
+        self.setRunningStatus(False)
         self.initDone = True
         self.generate_waveform()

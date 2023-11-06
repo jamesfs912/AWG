@@ -3,14 +3,6 @@ import subprocess
 import sys 
 import os
 import wave_drawer
-
-## USB Modem, change data input type for offset, make a popup box for the device being connected, make the wave shape buttons generate instead of the generate button. Turn generate button into 
-## a toggle channel off button. Change wave colors if it's off / illegal values. Generate when unfocused, Highlight shape chosen. Fix time base. Fix to one period. Sphynx documentation.
-## Documentation : communication protocols
-## Put a minimum size
-## Batch, change color, fix offset changing
-## Check if making a pip package is easier 
-
 import subprocess
 import math
 import numpy as np
@@ -49,14 +41,93 @@ class WaveformGenerator(QtWidgets.QWidget):
         if status == "connected":
             for c in self.channels:
                 print(c.chan_num)
-                #c.setRunningStatus(False)
+                c.setRunningStatus(False)
 
     def connectButtonClicked(self):
         self.connectButton.setEnabled(False)
         self.conn.tryConnect()
+        
+    def getSkips(self, freq, numSamples, fclk):
+        return fclk / (freq * numSamples)
+        
+    def calc_val(self, freq):
+        fclk = 72e6
+        skipGoal = 25
+        max_samples = 1024*4
+        numSamples = max_samples
+        while (skips := self.getSkips(freq, numSamples, fclk)) < skipGoal:     
+            numSamples /= 2
+            
+         #calculate PSC and ARR from the sample period (skips)
+        PSC = 1
+        while (ARR := skips / PSC) > 2**16:
+            PSC += 1
+        PSC -= 1
+        ARR = round(ARR - 1)
+        skips_act = (PSC+1)*(ARR+1)
+        
+        return numSamples, ARR, PSC
     
-    def synButtonClicked(self):
-        pass
+    def findFreq(self, ns, arr, psc, fclk):
+        return fclk / (ns * (arr + 1) * (psc + 1))
+    
+    def setSyncStatus(self, status):
+        if status:
+            self.synced_status.setText("Synced")
+            self.synced_status.setStyleSheet("color : green")
+        else:
+            self.synced_status.setText("Not Synced")
+            self.synced_status.setStyleSheet("color : red")
+    
+    def updateWave(self, changed = -1):
+        set = [self.channels[0].waveSettings, self.channels[1].waveSettings]
+        syncNotPossible = (set[0].type == "dc" or set[1].type == "dc")
+        if not(self.syncButton.isChecked()) or syncNotPossible:
+            if changed == 0 or changed == -1:
+                self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = None, duty = set[0].duty, phase = set[0].phase)
+            if changed == 1 or changed == -1:
+                self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = None, duty = set[1].duty, phase = set[1].phase)
+            if syncNotPossible:
+                self.setSyncStatus(False)
+            else:
+                ns0, arr0, psc0 = self.calc_val(set[0].freq)
+                ns1, arr1, psc1 = self.calc_val(set[1].freq)
+                synced = (ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)) == (set[0].freq / set[1].freq)
+                self.setSyncStatus(synced)
+        else:
+            t0 = 1 / set[0].freq
+            t1 = 1 / set[1].freq
+            print(t0, t1)
+            print(math.gcd(t0, t1))
+            print("not supported")
+        #set0 = self.channels[0].waveSettings
+        #set1 = self.channels[1].waveSettings
+        #if set0.type = "dc" or set1.type == "dc":
+        #    synced = False
+        #else:
+        #    ns0, arr0, psc0 = self.calc_val(set0.freq)
+        #    ns1, arr1, psc1 = self.calc_val(set1.freq)
+        #    f0 = self.findFreq(ns0, arr0, psc0, 72e6)
+        #    f1 = self.findFreq(ns1, arr1, psc1, 72e6)
+        #    print(f0, f1)
+        #    print(set0.freq / set1.freq)
+        #    print(f0 / f1)
+        #    print((ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)))
+        #    synced = (ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)) == (set0.freq / set1.freq)
+        #self.setSyncStatus(synced)
+        #
+        #if changed == 0:
+        #    set = self.channels[0].waveSettings
+        #
+        #    self.conn.sendWave(0, freq = set.freq, wave_type = set.type, amplitude = set.amp, offset = set.offset, arbitrary_waveform = None, duty = set.duty, phase = set.phase)
+        #
+        #    #numSamples, ARR, PSC = self.calc_val(set.freq)
+        #    #print(numSamples, " " , ARR, " " ,PSC)
+        #elif changed == 1:
+        #    set = self.channels[1].waveSettings
+        #    self.conn.sendWave(1, freq = set.freq, wave_type = set.type, amplitude = set.amp, offset = set.offset, arbitrary_waveform = None, duty = set.duty, phase = set.phase)
+        #print("foo: ", changed)
+        #pass
     
     def __init__(self):
         super().__init__()
@@ -71,14 +142,15 @@ class WaveformGenerator(QtWidgets.QWidget):
         
         self.grid_layout.addWidget(QtWidgets.QLabel("Waveform generator"), 0, 0, 1, 1)
         
-        self.synced_status = QtWidgets.QLabel("Un Synced")
+        self.synced_status = QtWidgets.QLabel("")
         self.grid_layout.addWidget(self.synced_status, 0, 5, 1, 1)
         #self.synced_status.setPixmap(stop_icon.pixmap())
-
-        self.syncButton = QtWidgets.QCheckBox  ("Attempt Sync")
+        self.setSyncStatus(False)
+        
+        self.syncButton = QtWidgets.QCheckBox  ("Force Sync")
         self.grid_layout.addWidget(self.syncButton, 0, 6, 1, 1)
-        self.syncButton.clicked.connect(self.synButtonClicked)
-
+        self.syncButton.clicked.connect(lambda: self.updateWave(-1))
+        
         self.open_drawer = QtWidgets.QPushButton('open drawer')
         self.grid_layout.addWidget(self.open_drawer, 0, 1)
         self.open_drawer.clicked.connect(self.fun_open_drawer)
@@ -88,7 +160,9 @@ class WaveformGenerator(QtWidgets.QWidget):
  
         self.channels = []
         for i in range(2):
-            self.channels += [Channal(i, self.grid_layout, run_icon, stop_icon, self.conn)]
+            self.channels += [Channal(i, self.grid_layout, run_icon, stop_icon, self.updateWave)]
+        for c in self.channels:
+            c.enableUpdates()
 
         self.status_label = QtWidgets.QLabel("Status: disconnected")
         self.grid_layout.addWidget(self.status_label, 19, 0, 1, 1)
@@ -97,8 +171,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.connectButton.setEnabled(False)
         self.grid_layout.addWidget(self.connectButton, 19, 1, 1, 1)
         self.connectButton.clicked.connect(self.connectButtonClicked)
-         
-
 
         for i in range(1, 7):
             self.grid_layout.setColumnStretch(i, 1)
@@ -108,200 +180,14 @@ class WaveformGenerator(QtWidgets.QWidget):
             
         self.setLayout(self.grid_layout)
 
-#    def init_restraints(self):
-#        #Hardware restraints
-#        self.freqMin = 0
-#        self.freqMax = 1000000
-#        self.ampMin = 0
-#        self.ampMax = 5
-#        self.offsetMin = -5
-#        self.offsetMax = 5
-
     def fun_open_drawer(self):
         drawer_window.show()
-    
-#    # Takes the user inputted CSV files and loads them as the current waveform
-#    def select_arbitrary_file(self):
-#        file_dialog = QtWidgets.QFileDialog()
-#        file_dialog.setNameFilter('csv files (*.csv)')
-#        if file_dialog.exec():
-#            file_path = file_dialog.selectedFiles()[0]
-#            self.arb_file_label.setText(file_path)
-#            self.arbitrary_waveform = np.loadtxt(file_path)
-#
-#    # Takes the user inputted CSV files and loads them as the current waveform
-#    def select_c2_arbitrary_file(self):
-#        file_dialog = QtWidgets.QFileDialog()
-#        file_dialog.setNameFilter('csv files (*.csv)')
-#        if file_dialog.exec():
-#            file_path = file_dialog.selectedFiles()[0]
-#            self.c2_arb_file_label.setText(file_path)
-#            self.c2_arbitrary_waveform = np.loadtxt(file_path)
-#
-#    # Generates the waveform from the 
-#    def load_arbitrary_waveform(self):
-#        try:
-#            # Read the CSV file and update the waveform data
-#            self.arbitrary_waveform = np.genfromtxt('AWG.csv', delimiter='\n')
-#            self.generate_waveform()
-#        except OSError:
-#            pg.QtGui.QMessageBox.warning(self, 'Error', 'Failed to read arbitrary waveform data')
-#
-#    # Generates the waveform from the file saved by the user. Note to Vik: You might have to change the filename to not conflict with c1 and c2
-#    def load_c2_arbitrary_waveform(self):
-#        try:
-#            # Read the CSV file and update the waveform data
-#            self.c2_arbitrary_waveform = np.genfromtxt('AWG.csv', delimiter='\n')
-#            self.generate_waveform()
-#        except OSError:
-#            pg.QtGui.QMessageBox.warning(self, 'Error', 'Failed to read arbitrary waveform data')
-#
-#    def phase_verification(self, value):
-#        try:
-#            value = int(value)
-#            value = value % 360
-#            return value
-#        except:
-#            self.ThrowError("Invalid input, phase can only be an integer value.")
-#            return 0    
-#
-#    def duty_verification(self, value):
-#        try:
-#            value = int(value)
-#            if value >= 0 and value <= 100:
-#                return value
-#            self.ThrowError("Duty cycle must be between 0 and 100.")
-#            return 0
-#        except:
-#            self.ThrowError("Invalid input, duty cycle can only be an integer value.")
-#            return 0
-#
-#    def offset_verification(self, value, channel = 0):
-#        prefixes = {'m': 0.001, 'V': 1, 'v': 1, 'mV': 0.001, 'mv': 0.001}
-#        try:
-#            if isinstance(value, (int, float)):  # This only passes if the value is already numeric
-#                return value
-#            print("Offset: " + value)
-#            # prefix conversion
-#            if value[-2:] in prefixes:
-#                multiplier = prefixes[value[-2:]]
-#                answer = multiplier * float(value[:-2])
-#            elif value[-1] in prefixes:
-#                multiplier = prefixes[value[-1]]
-#                answer = multiplier * float(value[:-1])
-#            else:
-#                answer = float(value)
-#            
-#            if(channel == 1):
-#                if(self.waveform_type == 'dc'):
-#                    if(-10 <= answer <= 10):
-#                        return answer
-#                    else:
-#                        self.ThrowError("Voltage must be between -10V and 10V.")
-#                        return 0
-#                elif(self.offsetMin <= answer <= self.offsetMax):
-#                    return answer
-#                else:
-#                    
-#                    self.ThrowError("Voltage must be between {0}V and {1}V.".format(self.offsetMin, self.offsetMax))
-#                    return 0
-#            if(channel == 2):
-#                if(self.c2_waveform_type == 'dc'):
-#                    if(-10 <= answer <= 10):
-#                        return answer
-#                    else:
-#                        self.ThrowError("Voltage must be between -10V and 10V.")
-#                        return 0
-#                elif(self.c2_offsetMin <= answer <= self.c2_offsetMax):
-#                    return answer
-#                else:
-#                    self.ThrowError("Voltage must be between {0}V and {1}V.".format(self.offsetMin, self.offsetMax))
-#                    return 0
-#
-#            self.ThrowError("Voltage must be between {0}V and {1}V.".format(self.offsetMin, self.offsetMax))
-#            return 0
-#        
-#        except Exception as e:
-#            print(e)
-#            self.ThrowError("Invalid input(s). With value: " + value)
-#            return 0
-#        
-#    def amplitude_verification(self, value):
-#        prefixes = {'m': 0.001}
-#        try:
-#            if isinstance(value, (int, float)):  # This only passes if the value is already numericß
-#                return value
-#
-#            # prefix conversion
-#            if value[-1] in prefixes:
-#                multiplier = prefixes[value[-1]]
-#                answer = multiplier * float(value[:-1])
-#            else:
-#                answer = float(value)
-#            if self.ampMin <= answer <= self.ampMax:
-#                return answer
-#            self.ThrowError("Amplitude must be between {0}V and {1}V.".format(self.ampMin, self.ampMax))
-#            
-#        except Exception as e:
-#            print(e)
-#            self.ThrowError("Invalid input(s). With value: " + value)
-#            return 0
-#    
-#    # Checks if the user inputted an amplitude value with a prefix and converts it accordingly, also checks for legal values.
-#    def freq_verification(self, value):
-#        prefixes = {'K': 1000, 'k': 1000, 'M': 1000000, 'm': 1000000}
-#        try:
-#            if isinstance(value, (int, float)): #This only passes if the value has not been changed
-#                return value
-#            
-#            # prefix conversion
-#            if(len(value) == 1):
-#                return int(value)
-#            elif value[-1] in prefixes:
-#                multiplier = prefixes[value[-1]]
-#                answer = multiplier * int(value[:-1])
-#            else:
-#                answer = int(value)
-#            
-#            #Check if values are permitted
-#            if answer >= self.freqMin and answer <= self.freqMax:
-#                return int(answer)
-#            self.ThrowError("Frequency must be between {0}Hz and {1}MHz.".format(self.freqMin, int(self.freqMax/1000000)))
-#            return 0
-#        except Exception as e:
-#            print(e)
-#            self.ThrowError("Invalid input(s). With value:" + value)
-#            return 0
-#    
-#    #Saves the waveform drawn by the user.
-#    def save_waveform(self):
-#        #file_dialog = QtGui.QFileDialog()
-#        #file_dialog.setDefaultprefix('txt')
-#        #file_dialog.setNameFilter('Text files (*.txt)')
-#        #if file_dialog.exec_():
-#            #file_path = file_dialog.selectedFiles()[0]
-#            #t, y = self.plot_data.getData()
-#            #np.savetxt(file_path, y)
-#        dummy = True
-#
-#    # Resets the waveform to default settings as the first opened by the user.
-#    def reset_waveform(self):
-#        self.freq_slider.setValue(10)
-#        self.amp_slider.setValue(1)
-#        self.phase_slider.setValue(0)
-#        self.sine_button.setChecked(True)
-#        self.arb_file_label.setText('No file selected')
-#        self.arbitrary_waveform = None
-#        self.plot_data.clear()
-#        i = 0
         
     def closeEvent(self, event):
         self.conn.close()
         
     def theme(self):
-        app.setStyle("fusion")
-        light_palette = app.palette()
-        
+        #app.setStyle("fusion")       
         # Create a custom light theme palette
         light_palette = app.palette()
         
@@ -317,5 +203,4 @@ if __name__ == '__main__':
 
     drawer_window = wave_drawer.AppWindow(waveform_generator.channels[0], waveform_generator.channels[1])
     app.exec()
-
     sys.exit()
