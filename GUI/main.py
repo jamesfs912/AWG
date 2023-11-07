@@ -47,31 +47,7 @@ class WaveformGenerator(QtWidgets.QWidget):
     def connectButtonClicked(self):
         self.connectButton.setEnabled(False)
         self.conn.tryConnect()
-        
-    def getSkips(self, freq, numSamples, fclk):
-        return fclk / (freq * numSamples)
-        
-    def calc_val(self, freq):
-        fclk = 72e6
-        skipGoal = 25
-        max_samples = 1024*4
-        numSamples = max_samples
-        while (skips := self.getSkips(freq, numSamples, fclk)) < skipGoal:     
-            numSamples /= 2
-            
-         #calculate PSC and ARR from the sample period (skips)
-        PSC = 1
-        while (ARR := skips / PSC) > 2**16:
-            PSC += 1
-        PSC -= 1
-        ARR = round(ARR - 1)
-        skips_act = (PSC+1)*(ARR+1)
-        
-        return numSamples, ARR, PSC
-    
-    def findFreq(self, ns, arr, psc, fclk):
-        return fclk / (ns * (arr + 1) * (psc + 1))
-    
+       
     def setSyncStatus(self, status):
         if status:
             self.synced_status.setText("Synced")
@@ -91,14 +67,14 @@ class WaveformGenerator(QtWidgets.QWidget):
             if syncNotPossible:
                 self.setSyncStatus(False)
             else:
-                ns0, arr0, psc0 = self.calc_val(set[0].freq)
-                ns1, arr1, psc1 = self.calc_val(set[1].freq)
+                ns0, arr0, psc0 = self.conn.calc_val(set[0].freq)
+                ns1, arr1, psc1 = self.conn.calc_val(set[1].freq)
                 synced = (ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)) == (set[0].freq / set[1].freq)
                 self.setSyncStatus(synced)
         else:
             min = None
-            for a in range(1, 100):
-                for b in range(1, 100):
+            for a in range(1, 101):
+                for b in range(1, 101):
                     if a/b == set[0].freq / set[1].freq:
                         if min == None or min[0] * min[1] > a*b:
                             min = (a, b)
@@ -108,11 +84,7 @@ class WaveformGenerator(QtWidgets.QWidget):
                 self.setSyncStatus(False)
             else:
                 a, b = min
-                print("======\n======\n====\n====")
-                print(a, b)
-                print(set[0].freq / a,  set[1].freq / b)
-                f_comm = set[0].freq / a #same as set[1].freq / b?
-                print(f_comm)
+                f_comm = set[0].freq / a #same as set[1].freq / b
                 self.conn.sendWave(0, f_comm, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = None, duty = set[0].duty, phase = set[0].phase, numPeriods = a)
                 self.conn.sendWave(1, f_comm, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = None, duty = set[1].duty, phase = set[1].phase, numPeriods = b)
                 self.setSyncStatus(True)
@@ -264,7 +236,6 @@ class WaveformGenerator(QtWidgets.QWidget):
             QLabel {
                 color: #FFFFFF; 
             }
-
     
             QLabel#freqLabel, #ampLabel, #offsetLabel, #dcLabel, #phaseLabel{
                 background-color: #1874CD; 

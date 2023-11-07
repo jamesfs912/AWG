@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QComboBox, QPushButton, QLineEdit
 
 from channal import Channal
 from aw import AW
-from wavegen import generateSamples
+from wavegen import generateSamples, resample
 import numpy as np
 import math
 from random import random
@@ -207,12 +207,11 @@ class AppWindow(QtWidgets.QWidget):
         for a in self.listAW:
 
             if a.filename == self.stored_waves.currentText():
-                self.pl.clear()
                 for i in range(0, SAMPLE_POINTS):
                     yValues.append(a.samples[i])
+                #elf.pl.valuesY = resample(yValues, SAMPLE_POINTS)
                 self.pl.valuesY = yValues
                 self.pl.updateGraph()
-                #self.pl.line = self.pl.plot(tValues, yValues, pen='b')
 
     def addAW(self):
 

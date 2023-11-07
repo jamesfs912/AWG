@@ -7,29 +7,12 @@ from struct import pack
 import os
 from queue import Queue
 import time 
-import matplotlib.pyplot as plt
-DEBUG = True
 
-def pd(*args, **kwargs):
-    if DEBUG:
-        __builtins__['print'](*args, **kwargs)
-print = pd
-
-def getSkips(freq, numSamples, fclk):
-    return fclk / (freq * numSamples)
-
-def error(f_target, skips, fclk, samples):
-    skips = round(skips)
-    fs = fclk / skips
-    fo = fs / samples
-    return abs((fo - f_target) / f_target) * 100
-    
 class Connection:
         
     def sendHandShakePacket(self):
         if self.status == "disconnected":
             return
-        print("sending handshake packet")
         bytes = pack("B4B59x", 0, ord('I'), ord('N'), ord('I'), ord('T'))
         assert len(bytes) == 64
         self.sendQ.put(bytes)
@@ -56,7 +39,6 @@ class Connection:
                     timeouts = 1
                     self.sendHandShakePacket()
                 else:
-                    print("timeut")
                     self.read_disconnect("timeout")
                 pass
             else:
@@ -65,15 +47,11 @@ class Connection:
                     if self.status == "connecting":
                         self.statusCallback.emit("connected", None)
                     self.status = "connected"
-                    print("got ack")
-                    #self.gotAck = True
                 else:
                     self.status = "disconnected"
                     self.sendQ.put(None)
                     self.statusCallback.emit("disconnected", "Bad packet")
         self.sendQ.put(None)
-        print("read close")
-                
             
     def write_funct(self):
         while self.status != "disconnected":
@@ -83,7 +61,6 @@ class Connection:
                     self.ser.write(packet)
                 except:
                     pass
-        print("write close")
         
     def close(self):
         if self.status != "disconnected":
@@ -95,7 +72,30 @@ class Connection:
             bytes += [0]
         return bytes
         
-    def sendWave(self, chan, freq = 1e3, wave_type = "sin", amplitude = 5, offset = 0, arbitrary_waveform = None, duty = 50, phase = 0, forceGain = -1, numPeriods = 1):
+    def getSkips(self, freq, numSamples, fclk):
+        return fclk / (freq * numSamples)
+        
+    def calc_val(self, freq):
+        fclk = 72e6
+        skipGoal = 25
+        max_samples = 1024*4
+        numSamples = max_samples
+        while (skips := self.getSkips(freq, numSamples, fclk)) < skipGoal:     
+            numSamples /= 2
+            
+        numSamples = int(numSamples)
+        
+         #calculate PSC and ARR from the sample period (skips)
+        PSC = 1
+        while (ARR := skips / PSC) > 2**16:
+            PSC += 1
+        PSC -= 1
+        ARR = round(ARR - 1)
+        
+        return numSamples, ARR, PSC
+        
+        
+    def sendWave(self, chan, freq = 1e3, wave_type = "sin", amplitude = 5, offset = 0, arbitrary_waveform = None, duty = 50, phase = 0, numPeriods = 1):
         if self.status == "disconnected":
             return
     
@@ -109,71 +109,38 @@ class Connection:
     
         #which gain to use?
         #print(amplitude)        
-        if forceGain == -1:
-            if wave_type == "dc":
-                gain = 0
-            else:
-                gain = 0 if abs(amplitude) > 0.5 else 1
+        if wave_type == "dc" or offset > 5:
+            gain = 0
         else:
-            gain = forceGain
-			
+            gain = 0 if abs(amplitude) > 0.5 else 1
         #calculate offset CCR value
         offset_pwm = max(min(offset, 5), -5)
         CCR_offset = max(min(math.floor((-offset_pwm + offset_amp) / (offset_amp * 2) * PWM_ARR), PWM_ARR), 0)
         offset_dac = offset - offset_pwm
-        
-        #calculate number of samples to use, and the optimal sample period (skips)
+
         if wave_type == "dc": 
-            numSamples = 2
-            freq = 1e2
+            numSamples, ARR, PSC = (2, int(2**15), 0)    
         else:
-            skipGoal = 25
-            max_samples = 1024*4
-            numSamples = max_samples
-            while (skips := getSkips(freq, numSamples, fclk)) < skipGoal:     
-                #print(f"numSamples : {numSamples} skips: {skips}")
-                numSamples /= 2
-        skips = getSkips(freq, numSamples, fclk)
-        numSamples = int(numSamples)
-        
-        #calculate PSC and ARR from the sample period (skips)
-        PSC = 1
-        while (ARR := skips / PSC) > 2**16:
-            PSC += 1
-        PSC -= 1
-        ARR = round(ARR - 1)
+            numSamples, ARR, PSC = self.calc_val(freq)
         skips_act = (PSC+1)*(ARR+1)
-       # print("asd ", fclk / numSamples / skips_act)
-        #calculate samples 
-        dac_scale = (2**dac_bits) / 2
+        
         
         phase_clocks = numSamples * (ARR + 1) * phase
         phase_samples = phase_clocks / (ARR + 1) / numSamples
         phase_arr = 0
         if chan == 1:
-            pass
-            #phase_arr += 6 // (PSC + 1)
+            phase_arr += 6 // (PSC + 1)
         ##if PSC == 0:
         ##    phase_arr += int(phase_clocks) 
-        #phase_arr += int(phase_clocks / (PSC + 1)) 
+        phase_arr += int(phase_clocks / (PSC + 1)) 
         
-        #phase_arr += ARR
         phase_arr = phase_arr % (ARR + 1)
         
-        
-        print(phase, phase_clocks, phase_samples, phase_arr)
-        
+        #print(phase, phase_clocks, phase_samples, phase_arr)
+        dac_scale = (2**dac_bits) / 2
         samples = generateSamples(type = wave_type, numSamples = numSamples, amplitude = amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform = arbitrary_waveform, duty = duty, phase = phase_samples, offset = dac_scale + offset_dac / gain_amp[gain] * dac_scale, clamp = [0, 2**dac_bits - 1], numT = numPeriods)      
         samples = samples[2]
-        
-        
-        
-        print(f"CCR_offset : {CCR_offset} gain_amp: {gain_amp[gain]}")
-        print(f"numSamples : {numSamples} skips opt: {skips}")
-        print(f"PSC : {PSC} ARR: {ARR}, skips act: {skips_act}")
-        print(f"error skips_opt: {error(freq, skips, fclk, numSamples)}%")     
-        print(f"error skips_act: {error(freq, skips_act, fclk, numSamples)}%")     
-        
+
         bytes = pack("<BBBHHHHH51x", 1, chan, gain, PSC, ARR, CCR_offset, numSamples, phase_arr)
         sample_bytes = samplesToBytes(samples)
         assert len(bytes) % 64 == 0
@@ -186,21 +153,8 @@ class Connection:
             
         portName = None
     
-        ports = list( serial.tools.list_ports.comports() )
-        print("ports:")
+        ports = list(serial.tools.list_ports.comports())
         for port in ports:
-            print("info:")
-            print(port.name)
-            print(port.description)
-            print(port.hwid)
-            print(port.vid)
-            print(port.pid)
-            print(port.serial_number)
-            print(port.location)
-            print(port.manufacturer)
-            print(port.product)
-            print(port.interface)
-            print("\n")
             if(port.vid == 1155 and port.pid == 22336):
                 portName = port.name
                 break

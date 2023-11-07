@@ -43,9 +43,9 @@ class Input(QLineEdit):
             
     def keyPressEvent(self, event):
        # print(str(event.key()))
-        if event.key() == 16777235: # or event.key() == 16777236: #Key_Up: #what the hell is the fucking import for this?????
+        if event.key() == 16777235: #Key_Up: #what the hell is the fucking import for this?????
             self.setVal(self.value + 1)
-        elif event.key() == 16777237: # or event.key() == 16777234: #Key_Down:
+        elif event.key() == 16777237: #Key_Down:
             self.setVal(self.value - 1)
         else:
             QLineEdit.keyPressEvent(self, event)
@@ -54,12 +54,13 @@ class Input(QLineEdit):
         self.setVal(self.value + event.angleDelta().y() / 120)
         event.accept()
             
-    def setVal(self, val):
+    def setVal(self, val, runCallback = True):
         val = fixRange(val, self.range[0], self.range[1])
         self.value = val
         val, prefix = findBestPrefix(val, self.prefixes)
         self.setText(f"{val} {prefix}{self.def_unit}")
-        self.callback_update()
+        if runCallback:
+            self.callback_update()
         
     def __init__(self, callback_update, range, init_val, def_unit, prefixes = [], *args, **kwargs):
         QLineEdit.__init__(self, *args, **kwargs)

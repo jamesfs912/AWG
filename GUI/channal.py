@@ -12,7 +12,6 @@ from wavegen import generateSamples
 from connection import Connection
 from input_feild import Input
 
-#<<<<<<< HEAD
 class WaveSettings():
     def __init__(self, type, freq, amp, offset =0 , duty = 50, phase = 0, arb = None):
         self.type = type
