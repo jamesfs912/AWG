@@ -1,15 +1,16 @@
 import pyqtgraph as pg
 from PyQt6 import QtWidgets
 from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtWidgets import QComboBox, QPushButton
+from PyQt6.QtWidgets import QComboBox, QPushButton, QLineEdit
 
 from channal import Channal
 from aw import AW
 from wavegen import generateSamples
+import numpy as np
+import math
+from random import random
 
-tValues = []
-yValues = []
-
+SAMPLE_POINTS = 1024 * 4
 
 class MyPlotWidget(pg.PlotWidget):
 
@@ -20,109 +21,90 @@ class MyPlotWidget(pg.PlotWidget):
         self.setYRange(-1, 1)
         self.am_drawing = False
 
-        global tValues, yValues
-        self.prevMouseClick = 0
+        self.line = self.plot([], [], pen='c')
+        self.valuesX = np.linspace(0, 1, SAMPLE_POINTS, endpoint=False)
+        self.generate_preset("sine")
+        
+    def updateGraph(self):
+        self.line.setData(self.valuesX, self.valuesY)
 
-        nextPoint = 0
-        while nextPoint <= 1:
-            tValues.append(nextPoint)
-            yValues.append(0)
-            nextPoint = round(nextPoint + 0.001, 3)
-
-        self.line = self.plot(tValues, yValues, pen='b')
+    def movedPen(self, pos):
+        newX = round(pos.x() * SAMPLE_POINTS)
+        newY = pos.y()
+        
+        posX = self.lastX
+        posY = self.lastY
+        dirX = 1 if newX > posX else -1
+        if newX != self.lastX:
+            dirY = (newY - self.lastY) / (newX - self.lastX) * dirX
+        else:
+            dirY = 0
+        
+        while posX != newX + dirX:
+            if posX >= 0 and posX < SAMPLE_POINTS:
+                self.valuesY[posX] = max(min(posY, 1), -1)
+            posX += dirX
+            posY += dirY
+        
+        self.lastX = newX
+        self.lastY = newY
+        self.updateGraph()
 
     def mousePressEvent(self, event: QMouseEvent):
-        global tValues, yValues
-        pos = self.plotItem.vb.mapSceneToView(event.position())
-
         if event.button().name == 'LeftButton':
-
-            xVal = self.updateX(pos)
-            yVal = self.updateY(pos)
-
-            if xVal in tValues:
-                yValues[int(xVal * 1000)] = yVal
-                self.prevMouseClick = int(xVal * 1000)
-                # self.clear()
-                # self.line = self.plot(tValues, t=yValues, pen='b')
-
-                self.am_drawing = True
-
-    def mouseMoveEvent(self, event: QMouseEvent):
-        global tValues, yValues
-        pos = self.plotItem.vb.mapSceneToView(event.position())
-
-        xVal = self.updateX(pos)
-        yVal = self.updateY(pos)
-        if self.am_drawing and xVal >= 0 and xVal <= 1:
-
-            if xVal in tValues and self.prevMouseClick < len(tValues):
-
-                currentMouseIndex = int(xVal * 1000)
-                y = yVal - yValues[self.prevMouseClick]
-                x = currentMouseIndex - self.prevMouseClick
-                if x != 0:
-                    slope = (y / x)
-                else:
-                    slope = y
-                count = 1
-                yStart = yValues[self.prevMouseClick]
-
-                if (currentMouseIndex - self.prevMouseClick) > 1:
-
-                    # fill in a constant value for the missing samples.
-                    while self.prevMouseClick <= currentMouseIndex + 1 and self.prevMouseClick < len(tValues) - 1:
-                        self.prevMouseClick = self.prevMouseClick + 1
-                        yValues[self.prevMouseClick] = yStart + count * slope
-                        count = count + 1
-
-                        # tempY = tempY+slope
-                if (currentMouseIndex - self.prevMouseClick) < -1 and self.prevMouseClick < len(tValues) - 1:
-
-                    # fill in a constant value for the missing samples.
-                    while self.prevMouseClick >= currentMouseIndex - 1 and self.prevMouseClick < len(tValues) - 1:
-                        self.prevMouseClick = self.prevMouseClick - 1
-                        yValues[self.prevMouseClick] = yVal
-
-                self.prevMouseClick = currentMouseIndex
-                yValues[int(xVal * 1000)] = yVal
-                self.clear()
-                self.line = self.plot(tValues, yValues, pen='b')
+            pos = self.plotItem.vb.mapSceneToView(event.position())
+            
+            self.lastX = round(pos.x() * SAMPLE_POINTS)
+            self.lastY = pos.y()
+            self.am_drawing = True
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if event.button().name == 'LeftButton':
+        if event.button().name == 'LeftButton' and self.am_drawing:
+            pos = self.plotItem.vb.mapSceneToView(event.position())
+            self.movedPen(pos)
             self.am_drawing = False
+            
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if self.am_drawing:
+            pos = self.plotItem.vb.mapSceneToView(event.position())
+            self.movedPen(pos)
+    
+    # -"how much security vunrability do you want?"
+    # -"yes"
+    def generate_code(self, code):
+        try:
+            tempY = self.valuesY
+            env = {}
+            env["locals"]   = None
+            env["globals"]  = None
+            env["__name__"] = None
+            env["__file__"] = None
+            env["__builtins__"] = None
+            env["math"] = math
+            for funct in dir(math):
+                if funct[0] != '_':
+                    env[funct] = getattr(math, funct)
+            for i in range(SAMPLE_POINTS):
+                env["x"] = i / SAMPLE_POINTS
+                env["rand"] = random()*2-1 
+                y = eval(code, env)
+                tempY[i] = max(min(y, 1), -1)
+        except Exception as e:
+            print(e)
+            return
+        self.valuesY = tempY
+        self.updateGraph()
 
-    def updateX(self, pos):
-        pos = str(pos)
-        xVal = pos[pos.rfind('(') + 1: pos.rfind(',')]
-        xVal = self.truncate(float(xVal), 3)
-        return xVal
+    def generate_preset(self, type):
+        res = generateSamples(type=type, numSamples=SAMPLE_POINTS, amplitude=1)
+        samples = res[2]
+        self.valuesY = samples
+        self.updateGraph()
 
-    def updateY(self, pos):
-        pos = str(pos)
-        yVal = pos[pos.rfind(',') + 2: pos.rfind(')')]
-        yVal = self.truncate(float(yVal), 3)
-        return yVal
-
-    @staticmethod
-    def truncate(number: float, digits: int) -> float:
-        pow10 = 10 ** digits
-        return number * pow10 // 1 / pow10
-
-    def setSamples(self, samples):
-        global tValues, yValues
-        yValues = []
-        self.clear()
-        for i in range(0, len(tValues)):
-            yValues.append(samples[i])
-        self.line = self.plot(tValues, yValues, pen='b')
-
-    @staticmethod
-    def return_samples():
+    def return_samples(self):
         temp = []
-        for i in range(0, len(tValues)):
-            temp.append(yValues[i])
+        for i in range(0, len(self.valuesX)):
+            temp.append(self.valuesY[i])
         return temp
 
 
@@ -134,7 +116,6 @@ class AppWindow(QtWidgets.QWidget):
         self.channel2 = channel2
         self.channel1 = channel1
         self.setWindowTitle('Waveform drawer')
-        self.waveform_type = 'Line'
 
         self.listAW = []
 
@@ -149,13 +130,15 @@ class AppWindow(QtWidgets.QWidget):
 
         form = QtWidgets.QFormLayout()
 
-        self.filename = QtWidgets.QLineEdit()
+        self.filename = QLineEdit()
         form.addRow("Filename:", self.filename)
 
         vert = QtWidgets.QVBoxLayout()
         vert.addWidget(QtWidgets.QLabel("Wave Preset"))
         vert.addWidget(self.dropdown)
         vert.addWidget(self.gen_preset)
+        vert.addWidget(self.code_input)
+        vert.addWidget(self.gen_code)
         vert.addSpacing(300)
         vert.addWidget(QtWidgets.QLabel("Load/Delete Wave"))
         vert.addWidget(self.stored_waves)
@@ -171,11 +154,15 @@ class AppWindow(QtWidgets.QWidget):
 
         self.setLayout(layout)
 
-
-
     def init_buttons(self):
         self.gen_preset = QPushButton("Generate Preset")
         self.gen_preset.resize(200, 50)
+
+        self.code_input = QLineEdit  ("rand * 0.1 + sin(x*2*pi)*0.5")
+        #self.code_input.setFixedHeight(50)
+
+        self.gen_code = QPushButton("Generate Code")
+        self.gen_code.resize(200, 50)
 
         self.addWave_button = QPushButton("Add Wave")
         self.addWave_button.resize(200, 50)
@@ -188,7 +175,7 @@ class AppWindow(QtWidgets.QWidget):
 
     def init_dropdown(self):
         self.dropdown = QComboBox(self)
-        self.dropdown.addItem('Line')
+        self.dropdown.addItem('DC')
         self.dropdown.addItem('Sine')
         self.dropdown.addItem('Triangle')
         self.dropdown.addItem('Sawtooth')
@@ -205,38 +192,27 @@ class AppWindow(QtWidgets.QWidget):
             self.listAW.append(AW(line[0: line.find(',')], arr))
 
     def init_connections(self):
-        self.dropdown.activated.connect(lambda: self.update_dropdown())
-        self.gen_preset.clicked.connect(self.generate_preset)
+        self.gen_preset.clicked.connect(lambda: self.pl.generate_preset(self.dropdown.currentText().lower()))
+        #self.gen_code.clicked.connect(lambda: self.pl.generate_code(self.code_input.toPlainText()))
+        self.gen_code.clicked.connect(lambda: self.pl.generate_code(self.code_input.text()))
 
         self.addWave_button.clicked.connect(self.addAW)
         self.delWave_button.clicked.connect(self.deleteAW)
         self.loadWave_button.clicked.connect(self.load_wave)
 
-    def update_dropdown(self):
-        self.waveform_type = self.dropdown.currentText().lower()
-
-    def generate_preset(self):
-        type = self.waveform_type
-
-        if type == "line":
-            type = "dc"
-
-        res = generateSamples(type=type, numSamples=len(tValues), amplitude=1)
-        samples = res[2]
-        self.pl.setSamples(samples)
-
     # functions for new method of saving drawn waves
 
     def load_wave(self):
-        global tValues, yValues
         yValues = []
         for a in self.listAW:
 
             if a.filename == self.stored_waves.currentText():
                 self.pl.clear()
-                for i in range(0, len(tValues)):
+                for i in range(0, SAMPLE_POINTS):
                     yValues.append(a.samples[i])
-                self.pl.line = self.pl.plot(tValues, yValues, pen='b')
+                self.pl.valuesY = yValues
+                self.pl.updateGraph()
+                #self.pl.line = self.pl.plot(tValues, yValues, pen='b')
 
     def addAW(self):
 

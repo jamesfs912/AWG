@@ -13,6 +13,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLineEdit, QToolBar, QPushButton, QVBoxLayout, QFrame, QLabel, QMessageBox,QComboBox
 )
+from PyQt6.QtCore import Qt
 from PyQt6 import QtGui
 from wavegen import generateSamples
 import threading
@@ -95,42 +96,30 @@ class WaveformGenerator(QtWidgets.QWidget):
                 synced = (ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)) == (set[0].freq / set[1].freq)
                 self.setSyncStatus(synced)
         else:
-            t0 = 1 / set[0].freq
-            t1 = 1 / set[1].freq
-            print(t0, t1)
-            print(math.gcd(t0, t1))
-            print("not supported")
-        #set0 = self.channels[0].waveSettings
-        #set1 = self.channels[1].waveSettings
-        #if set0.type = "dc" or set1.type == "dc":
-        #    synced = False
-        #else:
-        #    ns0, arr0, psc0 = self.calc_val(set0.freq)
-        #    ns1, arr1, psc1 = self.calc_val(set1.freq)
-        #    f0 = self.findFreq(ns0, arr0, psc0, 72e6)
-        #    f1 = self.findFreq(ns1, arr1, psc1, 72e6)
-        #    print(f0, f1)
-        #    print(set0.freq / set1.freq)
-        #    print(f0 / f1)
-        #    print((ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)))
-        #    synced = (ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)) == (set0.freq / set1.freq)
-        #self.setSyncStatus(synced)
-        #
-        #if changed == 0:
-        #    set = self.channels[0].waveSettings
-        #
-        #    self.conn.sendWave(0, freq = set.freq, wave_type = set.type, amplitude = set.amp, offset = set.offset, arbitrary_waveform = None, duty = set.duty, phase = set.phase)
-        #
-        #    #numSamples, ARR, PSC = self.calc_val(set.freq)
-        #    #print(numSamples, " " , ARR, " " ,PSC)
-        #elif changed == 1:
-        #    set = self.channels[1].waveSettings
-        #    self.conn.sendWave(1, freq = set.freq, wave_type = set.type, amplitude = set.amp, offset = set.offset, arbitrary_waveform = None, duty = set.duty, phase = set.phase)
-        #print("foo: ", changed)
-        #pass
+            min = None
+            for a in range(1, 100):
+                for b in range(1, 100):
+                    if a/b == set[0].freq / set[1].freq:
+                        if min == None or min[0] * min[1] > a*b:
+                            min = (a, b)
+            if min == None:
+                self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = None, duty = set[0].duty, phase = set[0].phase)
+                self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = None, duty = set[1].duty, phase = set[1].phase)
+                self.setSyncStatus(False)
+            else:
+                a, b = min
+                print("======\n======\n====\n====")
+                print(a, b)
+                print(set[0].freq / a,  set[1].freq / b)
+                f_comm = set[0].freq / a #same as set[1].freq / b?
+                print(f_comm)
+                self.conn.sendWave(0, f_comm, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = None, duty = set[0].duty, phase = set[0].phase, numPeriods = a)
+                self.conn.sendWave(1, f_comm, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = None, duty = set[1].duty, phase = set[1].phase, numPeriods = b)
+                self.setSyncStatus(True)
     
     def __init__(self):
         super().__init__()
+
         self.setWindowTitle('Waveform Generator')
         
         self.grid_layout = QtWidgets.QGridLayout()
@@ -187,8 +176,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         themeLayout.addWidget(self.themeDropdown)
         self.grid_layout.addLayout(themeLayout, 19, 2, 1, 1)
 
-
-
         for i in range(1, 7):
             self.grid_layout.setColumnStretch(i, 1)
         for i in range(0, 19):
@@ -207,28 +194,28 @@ class WaveformGenerator(QtWidgets.QWidget):
     def defaultTheme(self):
         return
         app.setStyle("fusion")
-        #app.setStyleSheet("""
-        #    QWidget {
-        #        font-family: 'Verdana', sans-serif;
-        #        font-size: 12px;
-        #        color: #000000;
-        #        background-color: #ffffff;  
-        #    }
-        #
-        #    QLineEdit, QComboBox, QTextEdit {
-        #        border: 1px solid #000; 
-        #        padding: 2px;
-        #        background-color: #FFFFFF;
-        #        color: #000000;
-        #    }
-        #
-        #    QPushButton {
-        #        font-family: 'Verdana', sans-serif;
-        #        color: #000000;
-        #        background-color: #E0E0E0;  
-        #        border: 1px solid #000; 
-        #        padding: 5px 10px;
-        #    }""")
+        app.setStyleSheet("""
+            QWidget {
+                font-family: 'Verdana', sans-serif;
+                font-size: 12px;
+                color: #000000;
+                background-color: #ffffff;  
+            }
+        
+            QLineEdit, QComboBox, QTextEdit {
+                border: 1px solid #000; 
+                padding: 2px;
+                background-color: #FFFFFF;
+                color: #000000;
+            }
+        
+            QPushButton {
+                font-family: 'Verdana', sans-serif;
+                color: #000000;
+                background-color: #E0E0E0;  
+                border: 1px solid #000; 
+                padding: 5px 10px;
+            }""")
 
     def onThemeChange(self, text):
         if text == "Blue Mode":
@@ -240,7 +227,6 @@ class WaveformGenerator(QtWidgets.QWidget):
 
 
     def lightMode(self):
-        
         app.setStyleSheet("""
             QWidget {
                 font-family: 'Verdana', sans-serif;

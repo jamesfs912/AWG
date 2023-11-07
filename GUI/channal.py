@@ -94,11 +94,9 @@ class Channal:
         
         if self.running:
             self.waveSettings = WaveSettings(type = self.waveform_type, freq = self.freqInput.value, amp = self.ampInput.value, offset = self.offsetInput.value, duty = self.dutyInput.value, phase = self.phaseInput.value / 360, arb = self.arbitrary_waveform)
-            #self.conn.sendWave(self.chan_num, freq = self.freqInput.value, wave_type = self.waveform_type, amplitude = self.ampInput.value, offset = self.offsetInput.value, arbitrary_waveform = None, duty = self.dutyInput.value, phase = self.phaseInput.value / 360)
         else:
             self.waveSettings = WaveSettings(type = "dc", freq = 1e3, amp = 5)
-            #self.conn.sendWave(self.chan_num, wave_type = "dc", offset = 0)
-        
+       
         if self.allowUpdates:
             self.updateWave(self.chan_num)
         
