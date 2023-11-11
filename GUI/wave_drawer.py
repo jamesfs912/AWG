@@ -122,10 +122,10 @@ class AppWindow(QtWidgets.QWidget):
         self.listAW = []
 
         self.pl = MyPlotWidget()
+        self.create_file()
         self.init_dropdown()
         self.init_buttons()
         self.init_connections()
-        self.create_file()
 
         #listAW initialized with dropdown
         self.channel1.updateAWList(self.listAW)
