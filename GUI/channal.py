@@ -25,6 +25,7 @@ class WaveSettings():
 class Channal:
     def update_dropdown(self):
         self.waveform_type = self.dropdown.currentText().lower()
+        print("Selected waveform type:", self.waveform_type)
 
         if (self.waveform_type == 'square'):
             self.freqInput.setEnabled(True)
@@ -38,10 +39,10 @@ class Channal:
             self.offsetInput.setEnabled(True)
             self.dutyInput.setEnabled(False)
             self.phaseInput.setEnabled(False)
-        elif (self.waveform_type == 'arbitrary'):
-            #dont do this here
-            #self.arbitrary_waveform = self.listAW[self.dropdownArb.currentIndex()].samples
-            pass
+        # elif (self.waveform_type == 'arbitrary'):
+        #      #dont do this here
+        #      #self.arbitrary_waveform = self.listAW[self.dropdownArb.currentIndex()].samples
+        #      pass
         else:
             self.freqInput.setEnabled(True)
             self.ampInput.setEnabled(True)
@@ -51,9 +52,15 @@ class Channal:
         self.generate_waveform()
 
     def update_dropdownArb(self):
-        if self.waveform_type == 'arbitrary':
-            self.arbitrary_waveform = self.listAW[self.dropdownArb.currentIndex()].samples
-            self.generate_waveform()
+        selected_index = self.dropdownArb.currentIndex()
+        selected_aw = self.listAW[selected_index]
+        print("Selected AW object:", selected_aw)
+        print("Samples in selected AW:", selected_aw.samples)
+
+        self.arbitrary_waveform = selected_aw.samples
+        self.generate_waveform()
+
+
 
 
     def setRunningStatus(self, status):
@@ -71,19 +78,35 @@ class Channal:
     def generate_waveform(self):
         if not self.initDone:
             return
-            
-        #Different waveform generations based on waveform type
-        tr = 1 / self.freqInput.value
-        #arb_wave = self.listAW[self.dropdownArb.currentIndex()].samples
-        arb_wave = None
-        samples = generateSamples(self.waveform_type, 1000, self.ampInput.value, self.arbitrary_waveform, self.dutyInput.value, self.phaseInput.value / 360, offset = self.offsetInput.value, timeRange = tr, clamp = [-10, 10])
-        #if samples[0]:
-        #    pg.QtWidgets.QMessageBox.warning(self, 'Error', 'No arbitrary waveform file selected')
+        
+        #arbitrary scaling n stuff for arbitrary
+        if self.waveform_type == 'arbitrary':
+            y_values = self.arbitrary_waveform
+
+            amplitude = self.ampInput.value
+            offset = self.offsetInput.value
+            phase = self.phaseInput.value / 360  # Convert phase to a fraction
+
+
+            phase_shift = int(phase * len(y_values))  
+            scaled_y_values = [(y * amplitude) + offset for y in np.roll(y_values, phase_shift)]
+
+            time_array = np.arange(len(scaled_y_values))
+            self.plot_data.setData(time_array, scaled_y_values)
+            self.plot_widget.setXRange(0, len(y_values))
+
+        else:
+            tr = 1 / self.freqInput.value
+            samples = generateSamples(self.waveform_type, 1024, self.ampInput.value, None, 
+                                      self.dutyInput.value, self.phaseInput.value / 360, 
+                                      offset=self.offsetInput.value, timeRange=tr, clamp=[-10, 10])
+            self.plot_data.setData(samples[1], samples[2])
+            self.plot_widget.setXRange(0, tr)
+
              
-        self.plot_data.setData(samples[1], samples[2])
+        
         self.plot_widget.setLabel('left', text='', units='V')
         self.plot_widget.setLabel('bottom', text='', units= 's')
-        self.plot_widget.setXRange(0, tr)
         
         self.guide_lines[0].setData([-tr, tr * 2], [self.offsetInput.value, self.offsetInput.value])
         self.guide_lines[1].setData([-tr, tr * 2], [self.offsetInput.value + self.ampInput.value, self.offsetInput.value + self.ampInput.value])
