@@ -3,15 +3,61 @@ import os
 from PyQt6 import QtWidgets
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QComboBox, QPushButton, QLineEdit, QMessageBox
-
-from channal import Channal
-from wavegen import generateSamples, resample
+from wavegen import generateSamples, resample, sample
 import numpy as np
 import math
 from random import random
+from PyQt6 import QtGui
 
 SAMPLE_POINTS = 1024*4
 
+class AW:
+    def __init__(self, name, samples):
+        self.name = name
+        self.samples = samples
+        self.icon = None
+        if self.samples == None:
+            self.samples = [0] * SAMPLE_POINTS
+        self.genIcon()
+            
+    def lineDraw(self, map, size, x1, y1, x2, y2):   
+        dx = x2 - x1
+        dy = y2 - y1
+        if abs(dx) > abs(dy):
+            steps = abs(dx)
+        else:
+            steps = abs(dy)
+        xincrement = dx/steps
+        yincrement = dy/steps
+        i = 0
+        while i < steps:
+            i +=1
+            x1 = x1 + xincrement
+            y1 = y1 + yincrement
+            brush = 1
+            _x = int(max(x1 - brush, 0))
+            while _x < min(x1 + 1 + brush, size - 1):
+                _y = int(max(y1 - brush, 0))
+                while _y < min(y1 + 1 + brush, size - 1):
+                    map[(_y * size + _x) * 3 + 0] = 0
+                    map[(_y * size + _x) * 3 + 1] = 255
+                    map[(_y * size + _x) * 3 + 2] = 255
+                    _y += 1
+                _x += 1
+                
+    def genIcon(self):
+        size = 32
+        map =  [255]*(size*size * 3)
+        last = None
+        for x in range(size):
+            y = -sample(self.samples, x / size) * size / 2+ size / 2
+            y = max(min(y, size - 1), 0)
+            if last:
+                self.lineDraw(map, size, last[0], last[1], x, y)
+            last = (x, y)
+        self.icon = QtGui.QIcon(QtGui.QPixmap(QtGui.QImage(bytes(map), size, size,   QtGui.QImage.Format.Format_RGB888)))
+        return
+            
 class MyPlotWidget(pg.PlotWidget):
 
     def __init__(self, **kwargs):
@@ -97,8 +143,11 @@ class MyPlotWidget(pg.PlotWidget):
         self.updateGraph()
 
     def generate_preset(self, type):
-        res = generateSamples(type=type, numSamples=SAMPLE_POINTS, amplitude=1)
-        samples = res[2]
+        res = generateSamples(wavetype=type, numSamples=SAMPLE_POINTS, amplitude=1)
+        self.valuesY = res[1]
+        self.updateGraph()
+
+    def setSamples(self, samples):
         self.valuesY = samples
         self.updateGraph()
 
@@ -106,35 +155,56 @@ class MyPlotWidget(pg.PlotWidget):
         temp = []
         for i in range(0, len(self.valuesX)):
             temp.append(self.valuesY[i])
-        return temp
-
-
+        return self.valuesY.copy()
+    
 class AppWindow(QtWidgets.QWidget):
 
-    def __init__(self, channel1, channel2):
+    def __init__(self, chans):
         super(AppWindow, self).__init__()
 
-        self.channel2 = channel2
-        self.channel1 = channel1
+        self.chans = chans
         self.setWindowTitle('Waveform drawer')
         self.currently_loaded_wave = None
 
         self.listAW = []
 
         self.pl = MyPlotWidget()
-        self.create_file()
-        self.init_dropdown()
-        self.init_buttons()
-        self.init_connections()
+        
+        
+        self.stored_waves = QComboBox(self)
+        self.stored_waves.currentIndexChanged.connect(self.dropDownIndexChanged)
+        
+        self.dropdown = QComboBox(self)
+        self.dropdown.addItem('DC')
+        self.dropdown.addItem('Sine')
+        self.dropdown.addItem('Triangle')
+        self.dropdown.addItem('Sawtooth')
+        self.dropdown.addItem('Square')
+        
+        self.gen_preset = QPushButton("Generate Preset")
+        self.gen_preset.resize(200, 50)
+        self.gen_preset.clicked.connect(lambda: self.pl.generate_preset(self.dropdown.currentText().lower()))
+        
+        self.code_input = QLineEdit  ("rand * 0.1 + sin(x*2*pi)*0.5")
 
-        #listAW initialized with dropdown
-        self.channel1.updateAWList(self.listAW)
-        self.channel2.updateAWList(self.listAW)
+        self.gen_code = QPushButton("Generate Code")
+        self.gen_code.resize(200, 50)
+        self.gen_code.clicked.connect(lambda: self.pl.generate_code(self.code_input.text()))
+ 
+        self.saveWaveButton = QPushButton("Save Wave")
+        self.saveWaveButton.resize(200, 50)
+        self.saveWaveButton.clicked.connect(self.saveFunction)
 
-        form = QtWidgets.QFormLayout()
+        self.delWave_button = QPushButton("Delete")
+        self.delWave_button.resize(200, 50)
+        self.delWave_button.clicked.connect(self.delButtonClicked)
+        
+        self.newWaveButtpm = QPushButton("Add new")
+        self.newWaveButtpm.resize(200, 50)
+        self.newWaveButtpm.clicked.connect(lambda: (self.addWave(), self.updateDropDown(), self.stored_waves.setCurrentIndex(len(self.listAW) - 1)))
 
-        self.filename = QLineEdit()
-        form.addRow("Filename:", self.filename)
+        self.nameEdit = QLineEdit()
+        self.nameEdit.editingFinished.connect(self.nameEditDone)
 
         vert = QtWidgets.QVBoxLayout()
         vert.addWidget(QtWidgets.QLabel("Wave Preset"))
@@ -143,12 +213,14 @@ class AppWindow(QtWidgets.QWidget):
         vert.addWidget(self.code_input)
         vert.addWidget(self.gen_code)
         vert.addSpacing(300)
-        vert.addWidget(QtWidgets.QLabel("Load/Delete Wave"))
+        vert.addWidget(QtWidgets.QLabel("Select"))
         vert.addWidget(self.stored_waves)
-        vert.addWidget(self.loadWave_button)
+        vert.addWidget(self.newWaveButtpm)
 
-        vert.addLayout(form)
-        vert.addWidget(self.addWave_button)
+        vert.addWidget(QtWidgets.QLabel("Edit name:"))
+        vert.addWidget(self.nameEdit)
+        
+        vert.addWidget(self.saveWaveButton)
         vert.addWidget(self.delWave_button)
 
         layout = QtWidgets.QHBoxLayout()
@@ -156,119 +228,90 @@ class AppWindow(QtWidgets.QWidget):
         layout.addLayout(vert)
 
         self.setLayout(layout)
+        self.loadFile()
 
-    def init_buttons(self):
-        self.gen_preset = QPushButton("Generate Preset")
-        self.gen_preset.resize(200, 50)
+    def dropDownIndexChanged(self, ind):
+        if ind == -1:
+            return
+        self.nameEdit.setText(self.listAW[ind].name)
+        self.pl.setSamples(self.listAW[ind].samples.copy())
 
-        self.code_input = QLineEdit  ("rand * 0.1 + sin(x*2*pi)*0.5")
-        #self.code_input.setFixedHeight(50)
+    def nameEditDone(self):
+        print(self.nameEdit.text())
+        self.listAW[self.stored_waves.currentIndex()].name = self.nameEdit.text()
+        self.updateDropDown()
 
-        self.gen_code = QPushButton("Generate Code")
-        self.gen_code.resize(200, 50)
-
-        self.addWave_button = QPushButton("Save Wave")
-        self.addWave_button.resize(200, 50)
-
-        self.delWave_button = QPushButton("Delete Wave")
-        self.delWave_button.resize(200, 50)
-
-        self.loadWave_button = QPushButton("Load Wave")
-        self.loadWave_button.resize(200, 50)
-
-    def init_dropdown(self):
-        self.dropdown = QComboBox(self)
-        self.dropdown.addItem('DC')
-        self.dropdown.addItem('Sine')
-        self.dropdown.addItem('Triangle')
-        self.dropdown.addItem('Sawtooth')
-        self.dropdown.addItem('Square')
-
-        self.stored_waves = QComboBox(self)
-        with open("saved.txt", "r") as f:
-            for line in f:
-                self.stored_waves.addItem(line[0: line.find(',')])
-                strArray = line[line.find('[') + 1: len(line) - 2]
-                strArray = strArray.split(", ")
-                arr = [float(val) for val in strArray]
-
-                self.listAW.append(AW(line[0: line.find(',')], arr))
-
-    def init_connections(self):
-        self.gen_preset.clicked.connect(lambda: self.pl.generate_preset(self.dropdown.currentText().lower()))
-        #self.gen_code.clicked.connect(lambda: self.pl.generate_code(self.code_input.toPlainText()))
-        self.gen_code.clicked.connect(lambda: self.pl.generate_code(self.code_input.text()))
-
-        self.addWave_button.clicked.connect(self.addAW)
-        self.delWave_button.clicked.connect(self.deleteAW)
-        self.loadWave_button.clicked.connect(self.load_wave)
-
-    # functions for new method of saving drawn waves
-
-    def create_file(self):
-        # Check if saved.txt exists and create it if it doesn't
-        if not os.path.exists("saved.txt"):
-            with open("saved.txt", "w") as f:
-                pass
-
-    def load_wave(self):
-        selected_wave_name = self.stored_waves.currentText()
-        self.currently_loaded_wave = selected_wave_name
-        self.filename.setText(selected_wave_name)
-        yValues = []
-        for a in self.listAW:
-            if a.filename == selected_wave_name:
-                for i in range(0, SAMPLE_POINTS):
-                    yValues.append(a.samples[i])
-                #elf.pl.valuesY = resample(yValues, SAMPLE_POINTS)
-                self.pl.valuesY = yValues
-                self.pl.updateGraph()
-
-    def addAW(self):
-        new_filename = self.filename.text().strip()  # Strip to remove any leading/trailing spaces
-        temp = self.pl.return_samples()
-
-        # Check if the user is editing a loaded wave
-        if self.currently_loaded_wave == new_filename:
-            # Update the existing wave
-            for aw in self.listAW:
-                if aw.filename == new_filename:
-                    aw.samples = temp
-                    break
-        elif not any(aw.filename == new_filename for aw in self.listAW):
-            # Add a new wave
-            self.listAW.append(AW(new_filename, temp))
-            self.stored_waves.addItem(new_filename)
-        else:
-            # Error message for a wave name that already exists
-            msg = QMessageBox()
-            msg.setWindowTitle("Duplicate Name")
-            msg.setText("A wave with this name already exists.")
-            msg.setIcon(QMessageBox.Icon.Warning)
-            msg.exec()
-            return  # Early return to avoid further processing
-
-        self.generate_listAW_file()
-        self.channel1.updateAWList(self.listAW)
-        self.channel2.updateAWList(self.listAW)
-
-
-    def deleteAW(self):
-        wave_to_delete = self.stored_waves.currentText()
-        self.listAW = [aw for aw in self.listAW if aw.filename != wave_to_delete]
-        self.stored_waves.removeItem(self.stored_waves.currentIndex())
-
-        self.generate_listAW_file()
-        self.channel1.updateAWList(self.listAW)
-        self.channel2.updateAWList(self.listAW)
-
-    def generate_listAW_file(self):
+    def saveFunction(self):
+        self.listAW[self.stored_waves.currentIndex()].samples = self.pl.valuesY.copy()
+        self.listAW[self.stored_waves.currentIndex()].genIcon()
+        for c in self.chans:
+            c.updateAWList(self.listAW, modified = self.stored_waves.currentIndex())
+        self.saveFile()
+        
+    def updateDropDown(self):
+        ind = self.stored_waves.currentIndex()
+        self.stored_waves.clear()
+        i = 0
+        for aw in self.listAW:
+            self.stored_waves.addItem(aw.name)
+            if aw.icon:
+                self.stored_waves.setItemIcon(i, aw.icon)
+                i += 1
+        l = len(self.listAW)
+        self.delWave_button.setEnabled(l > 1)
+        if l > 0 and ind != -1:
+            self.stored_waves.setCurrentIndex(min(ind, l - 1))
+        for c in self.chans:
+            c.updateAWList(self.listAW)
+        self.saveFile()
+    
+    def saveFile(self):   
         with open('saved.txt', 'w') as f:  # Open in 'w' mode to overwrite the file
             for aw in self.listAW:
-                f.write(aw.filename + ", " + str(aw.samples) + '\n')
-
-class AW:
-    def __init__(self, filename, samples):
-        self.filename = filename
-        self.samples = samples
-
+                #f.write(aw.filename + ":" + str(aw.samples) + '\n')
+                f.write(aw.name + ":")
+                for i in range(len(aw.samples)):
+                    f.write(str(aw.samples[i]))
+                    if i != len(aw.samples) - 1:
+                        f.write(",")
+                f.write("\n") 
+                
+    def nameUsed(self, name):
+        for aw in self.listAW:
+            if aw.name == name:
+                return True
+        return False
+        
+    def addWave(self, name = None, arr = None):
+        if name == None:
+            num = 0
+            while True:
+                s = "Custum " + str(num)
+                num += 1
+                if not self.nameUsed(s):
+                    name = s
+                    break
+        self.listAW.append(AW(name, arr))
+        
+    def loadFile(self):
+        if os.path.exists("saved.txt"):
+        # Check if saved.txt exists and create it if it doesn't
+        #    with open("saved.txt", "w") as f: #this would end up being done later
+        #        pass
+        #else:
+            with open("saved.txt", "r") as f:
+                for line in f:
+                    line = line.strip()
+                    name = line[: line.find(':')]
+                    strArray = line[line.find(':') + 1:]
+                    strArray = strArray.split(",")
+                    arr = [float(val) for val in strArray]
+                    self.addWave(name, arr)
+        if len(self.listAW) == 0:
+            self.addWave()
+        self.updateDropDown()
+            
+    def delButtonClicked(self):
+        ind = self.stored_waves.currentIndex()
+        del self.listAW[ind]
+        self.updateDropDown()

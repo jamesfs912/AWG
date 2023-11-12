@@ -138,8 +138,8 @@ class Connection:
         
         #print(phase, phase_clocks, phase_samples, phase_arr)
         dac_scale = (2**dac_bits) / 2
-        samples = generateSamples(type = wave_type, numSamples = numSamples, amplitude = amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform = arbitrary_waveform, duty = duty, phase = phase_samples, offset = dac_scale + offset_dac / gain_amp[gain] * dac_scale, clamp = [0, 2**dac_bits - 1], numT = numPeriods)      
-        samples = samples[2]
+        samples = generateSamples(wavetype = wave_type, numSamples = numSamples, amplitude = amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform = arbitrary_waveform, duty = duty, phase = phase_samples, offset = dac_scale + offset_dac / gain_amp[gain] * dac_scale, clamp = [0, 2**dac_bits - 1], numT = numPeriods)      
+        samples = samples[1]
 
         bytes = pack("<BBBHHHHH51x", 1, chan, gain, PSC, ARR, CCR_offset, numSamples, phase_arr)
         sample_bytes = samplesToBytes(samples)

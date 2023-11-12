@@ -18,7 +18,7 @@ from PyQt6 import QtGui
 from wavegen import generateSamples
 import threading
 import platform
-from channal import Channal
+from channel import Channel
 
 #why windows why?
 if platform.system() == "Windows":
@@ -97,8 +97,9 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.grid_layout = QtWidgets.QGridLayout()
         
         self.setWindowIcon(QtGui.QIcon(resource_path("icon/icon.ico")))
-        run_icon = QtGui.QIcon(resource_path("icon/run.png"))
-        stop_icon = QtGui.QIcon(resource_path("icon/stop.png"))
+        icons = {}
+        for x in ["run", "stop", "sine", "tri", "saw", "square", "arb", "dc"]:
+            icons[x] = QtGui.QIcon(resource_path("icon/" + x + ".png"))
         
         self.grid_layout.addWidget(QtWidgets.QLabel("Waveform generator"), 0, 0, 1, 1)
         
@@ -111,7 +112,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.grid_layout.addWidget(self.syncButton, 0, 6, 1, 1)
         self.syncButton.clicked.connect(lambda: self.updateWave(-1))
         
-        self.open_drawer = QtWidgets.QPushButton('open drawer')
+        self.open_drawer = QtWidgets.QPushButton('Open Wave Drawer')
         self.grid_layout.addWidget(self.open_drawer, 0, 1)
         self.open_drawer.clicked.connect(self.fun_open_drawer)
  
@@ -120,10 +121,10 @@ class WaveformGenerator(QtWidgets.QWidget):
  
         self.channels = []
         for i in range(2):
-            self.channels += [Channal(i, self.grid_layout, run_icon, stop_icon, self.updateWave)]
+            self.channels += [Channel(i, self.grid_layout, icons, self.updateWave)]
         for c in self.channels:
             c.enableUpdates()
-
+            
         self.status_label = QtWidgets.QLabel("Status: disconnected")
         self.grid_layout.addWidget(self.status_label, 19, 0, 1, 1)
         
@@ -141,8 +142,10 @@ class WaveformGenerator(QtWidgets.QWidget):
 
         # Theme Dropdown
         self.themeDropdown = QtWidgets.QComboBox()
-        self.themeDropdown.addItems(['Default', 'Blue Mode', 'Dark Mode'])
-        self.themeDropdown.currentTextChanged.connect(self.onThemeChange)
+        self.themeList = {'Default' : self.defaultTheme, 'Blue Mode' : self.lightMode, 'Dark Mode' : self.darkMode}
+        self.themeDropdown.addItems(self.themeList.keys())
+        self.themeDropdown.currentTextChanged.connect(lambda: self.themeList[self.themeDropdown.currentText()]())
+
         # Custom width dropdown menu
         self.themeDropdown.view().setFixedWidth(125)
         themeLayout.addWidget(self.themeDropdown)
@@ -164,39 +167,32 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.conn.close()
 
     def defaultTheme(self):
-        return
-        app.setStyle("fusion")
-        app.setStyleSheet("""
-            QWidget {
-                font-family: 'Verdana', sans-serif;
-                font-size: 12px;
-                color: #000000;
-                background-color: #ffffff;  
-            }
-        
-            QLineEdit, QComboBox, QTextEdit {
-                border: 1px solid #000; 
-                padding: 2px;
-                background-color: #FFFFFF;
-                color: #000000;
-            }
-        
-            QPushButton {
-                font-family: 'Verdana', sans-serif;
-                color: #000000;
-                background-color: #E0E0E0;  
-                border: 1px solid #000; 
-                padding: 5px 10px;
-            }""")
-
-    def onThemeChange(self, text):
-        if text == "Blue Mode":
-            self.lightMode()
-        elif text == "Dark Mode":
-            self.darkMode()
-        elif text == "Default":
+        if platform.system() != "Darwin":
             app.setStyleSheet("")
-
+        else:
+            app.setStyle("fusion")
+            app.setStyleSheet("""
+                QWidget {
+                    font-family: 'Verdana', sans-serif;
+                    font-size: 12px;
+                    color: #000000;
+                    background-color: #ffffff;  
+                }
+            
+                QLineEdit, QComboBox, QTextEdit {
+                    border: 1px solid #000; 
+                    padding: 2px;
+                    background-color: #FFFFFF;
+                    color: #000000;
+                }
+            
+                QPushButton {
+                    font-family: 'Verdana', sans-serif;
+                    color: #000000;
+                    background-color: #E0E0E0;  
+                    border: 1px solid #000; 
+                    padding: 5px 10px;
+                }""")
 
     def lightMode(self):
         app.setStyleSheet("""
@@ -331,6 +327,6 @@ if __name__ == '__main__':
     waveform_generator.show()
     waveform_generator.connectButtonClicked()
 
-    drawer_window = wave_drawer.AppWindow(waveform_generator.channels[0], waveform_generator.channels[1])
+    drawer_window = wave_drawer.AppWindow(waveform_generator.channels)
     app.exec()
     sys.exit()

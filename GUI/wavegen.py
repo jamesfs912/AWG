@@ -18,40 +18,38 @@ def resample(samples, newNumSamples):
         values += [lerp(samples[ind], samples[ind2], f)]
     return values
         
-
-def generateSamples(type="sine", numSamples=1024, amplitude=5, arbitrary_waveform=None, duty=50, phase=0, offset=0,
+def sample(samples, x):
+    x *= len(samples)
+    ind = floor(x)
+    ind2 = (ind + 1) % len(samples)
+    f = x - ind
+    return lerp(samples[ind], samples[ind2], f)
+    
+def generateSamples(wavetype="sine", numSamples=1024, amplitude=5, arbitrary_waveform=None, duty=50, phase=0, offset=0,
                     timeRange=1, clamp=None, numT = 1):
                     
     t = np.linspace(0, numT, numSamples, endpoint=False)
-                    
-    if type == 'arbitrary':
-        if arbitrary_waveform:
-            t = np.linspace(0, 1, len(arbitrary_waveform), endpoint=False)
-            y = arbitrary_waveform
-            return (False, t, y)
-        else:
-            return (True, None, None)  # indicate error
+    tt = t   
+    phase = float(phase)
+    t = np.mod(t + phase, 1)
+
+    if wavetype == 'arbitrary':
+        y = np.zeros(numSamples)
+        for i in range(numSamples):
+            y[i] = sample(arbitrary_waveform, t[i])
     else:
-        
-        tt = t
-
-        phase = float(phase)
-        duty = float(duty)
-
-        t = np.mod(t + phase, 1)
-
-        if type == 'sine':
+        if wavetype == 'sine':
             y = np.sin(2 * np.pi * t)
-        elif type == "triangle":
+        elif wavetype == "triangle":
             t = np.mod(t + 0.25, 1)
             y = (np.mod(t * 2, 1) * -(np.floor(t * 2) * 2 - 1) + np.floor(t * 2)) * 2 - 1
-        elif type == "square":
+        elif wavetype == "square":
             y = np.ones(numSamples)
-            y[t >= duty / 100] = -1
-        elif type == "sawtooth":
+            y[t >= float(duty) / 100] = -1
+        elif wavetype == "sawtooth":
             t = np.mod(t + 0.5, 1)
             y = np.mod(t * 2, 2) - 1
-        elif type == "dc":
+        elif wavetype == "dc":
             y = np.zeros(numSamples)
         else:
             print("bad wavetype")
@@ -60,7 +58,7 @@ def generateSamples(type="sine", numSamples=1024, amplitude=5, arbitrary_wavefor
     y = y * amplitude + offset
     if clamp:
         np.clip(y, clamp[0], clamp[1], y)
-    return (False, tt, y)
+    return ( tt, y)
 
 
 def samplesToBytes(samples):

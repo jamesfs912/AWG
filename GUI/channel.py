@@ -22,7 +22,7 @@ class WaveSettings():
         self.phase = phase
         self.arb = arb
 
-class Channal:
+class Channel:
     def update_dropdown(self):
         self.waveform_type = self.dropdown.currentText().lower()
         print("Selected waveform type:", self.waveform_type)
@@ -39,10 +39,6 @@ class Channal:
             self.offsetInput.setEnabled(True)
             self.dutyInput.setEnabled(False)
             self.phaseInput.setEnabled(False)
-        # elif (self.waveform_type == 'arbitrary'):
-        #      #dont do this here
-        #      #self.arbitrary_waveform = self.listAW[self.dropdownArb.currentIndex()].samples
-        #      pass
         else:
             self.freqInput.setEnabled(True)
             self.ampInput.setEnabled(True)
@@ -51,15 +47,34 @@ class Channal:
             self.phaseInput.setEnabled(True)
         self.generate_waveform()
 
+    def updateAWList(self, AWlist, modified = -1):
+        last_ind = self.dropdownArb.currentIndex()
+        self.listAW = AWlist
+        self.dropdownArb.clear()
+        ind = 0
+        for aw in self.listAW:
+            self.dropdownArb.addItem(aw.name)
+            if aw.icon:
+                self.dropdownArb.setItemIcon(ind, aw.icon)
+            ind+=1
+        if modified != -1 and self.waveform_type == "arbitrary" and modified == last_ind:
+            self.generate_waveform()
+        if last_ind != -1:
+            if last_ind >= ind:
+                last_ind = ind - 1
+                self.dropdownArb.setCurrentIndex(min(last_ind, ind - 1))
+                self.generate_waveform()
+
+
     def update_dropdownArb(self):
-        selected_index = self.dropdownArb.currentIndex()
-        selected_aw = self.listAW[selected_index]
-        print("Selected AW object:", selected_aw)
-        print("Samples in selected AW:", selected_aw.samples)
-
-        self.arbitrary_waveform = selected_aw.samples
+        #ind = self.dropdownArb.currentIndex()
+        #selected_aw = self.listAW[selected_index]
+        #print("Selected AW object:", selected_aw)
+        #print("Samples in selected AW:", selected_aw.samples)
+        #
+        #self.arbitrary_waveform = selected_aw.samples
         self.generate_waveform()
-
+        return
 
 
 
@@ -67,41 +82,49 @@ class Channal:
         self.running = status
         if self.running:
             self.run_stop.setText("Stop")
-            self.run_stop.setIcon(self.stop_icon)
+            self.run_stop.setIcon(self.icons["stop"])
             #self.run_stop.setStyleSheet("background-color : lightblue")
         else:
             self.run_stop.setText("Run")
-            self.run_stop.setIcon(self.run_icon)
+            self.run_stop.setIcon(self.icons["run"])
             #self.run_stop.setStyleSheet("background-color : lightgrey")
         self.generate_waveform()
         
     def generate_waveform(self):
         if not self.initDone:
             return
+            
+        print("gw")
         
-        #arbitrary scaling n stuff for arbitrary
-        if self.waveform_type == 'arbitrary':
-            y_values = self.arbitrary_waveform
-
-            amplitude = self.ampInput.value
-            offset = self.offsetInput.value
-            phase = self.phaseInput.value / 360  # Convert phase to a fraction
-
-
-            phase_shift = int(phase * len(y_values))  
-            scaled_y_values = [(y * amplitude) + offset for y in np.roll(y_values, phase_shift)]
-
-            time_array = np.arange(len(scaled_y_values))
-            self.plot_data.setData(time_array, scaled_y_values)
-            self.plot_widget.setXRange(0, len(y_values))
-
+        tr = 1 / self.freqInput.value
+        if self.dropdownArb.currentIndex() != -1:
+            arbitrary_waveform = self.listAW[self.dropdownArb.currentIndex()].samples
         else:
-            tr = 1 / self.freqInput.value
-            samples = generateSamples(self.waveform_type, 1024, self.ampInput.value, None, 
-                                      self.dutyInput.value, self.phaseInput.value / 360, 
-                                      offset=self.offsetInput.value, timeRange=tr, clamp=[-10, 10])
-            self.plot_data.setData(samples[1], samples[2])
-            self.plot_widget.setXRange(0, tr)
+            arbitrary_waveform = None
+        #arbitrary scaling n stuff for arbitrary
+        #if self.waveform_type == 'arbitrary':
+        #    y_values = self.arbitrary_waveform
+        #
+        #    amplitude = self.ampInput.value
+        #    offset = self.offsetInput.value
+        #    phase = self.phaseInput.value / 360  # Convert phase to a fraction
+        #
+        #
+        #    phase_shift = int(phase * len(y_values))  
+        #    scaled_y_values = [(y * amplitude) + offset for y in np.roll(y_values, phase_shift)]
+        #
+        #    time_array = np.arange(len(scaled_y_values))
+        #    self.plot_data.setData(time_array, scaled_y_values)
+        #    self.plot_widget.setXRange(0, len(y_values))
+        #
+        #else:
+        samples = generateSamples(self.waveform_type, 1000 if self.waveform_type != "arbitrary" else 4096, self.ampInput.value, arbitrary_waveform, self.dutyInput.value, self.phaseInput.value / 360, offset = self.offsetInput.value, timeRange = tr, clamp = [-10, 10])
+
+        #samples = generateSamples(self.waveform_type, 1024, self.ampInput.value, None, 
+        #                          self.dutyInput.value, self.phaseInput.value / 360, 
+        #                          offset=self.offsetInput.value, timeRange=tr, clamp=[-10, 10])
+        self.plot_data.setData(samples[0], samples[1])
+        self.plot_widget.setXRange(0, tr)
 
              
         
@@ -115,7 +138,7 @@ class Channal:
         self.guide_lines[2].setVisible(self.waveform_type != "dc")
         
         if self.running:
-            self.waveSettings = WaveSettings(type = self.waveform_type, freq = self.freqInput.value, amp = self.ampInput.value, offset = self.offsetInput.value, duty = self.dutyInput.value, phase = self.phaseInput.value / 360, arb = self.arbitrary_waveform)
+            self.waveSettings = WaveSettings(type = self.waveform_type, freq = self.freqInput.value, amp = self.ampInput.value, offset = self.offsetInput.value, duty = self.dutyInput.value, phase = self.phaseInput.value / 360, arb = arbitrary_waveform)
         else:
             self.waveSettings = WaveSettings(type = "dc", freq = 1e3, amp = 5)
        
@@ -133,16 +156,9 @@ class Channal:
     def enableUpdates(self):
         self.allowUpdates = True
         self.updateWave(self.chan_num)
-        
-    def updateAWList(self, AWlist):
-        self.listAW = AWlist
-        self.dropdownArb.clear()
-        for aw in self.listAW:
-            self.dropdownArb.addItem(aw.filename)
 
-    def __init__(self, chan_num, grid_layout, run_icon, stop_icon, updateWave):
-        self.run_icon = run_icon
-        self.stop_icon = stop_icon
+    def __init__(self, chan_num, grid_layout, icons, updateWave):
+        self.icons = icons
         self.chan_num = chan_num
         self.updateWave = updateWave
         
@@ -153,9 +169,8 @@ class Channal:
             
         self.initDone = False
         self.allowUpdates = False
-        self.arbitrary_waveform = None
+        #self.arbitrary_waveform = None
         self.waveform_type = "sine"
-        self.listAW = []
 
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setMouseEnabled(x=False, y=False)
@@ -211,12 +226,17 @@ class Channal:
         self.dropdown.addItem('Square')
         self.dropdown.addItem('Arbitrary')
         self.dropdown.addItem('DC')
+        self.dropdown.setItemIcon(0, icons["sine"])
+        self.dropdown.setItemIcon(1, icons["tri"])
+        self.dropdown.setItemIcon(2, icons["saw"])
+        self.dropdown.setItemIcon(3, icons["square"])
+        self.dropdown.setItemIcon(4, icons["arb"])
+        self.dropdown.setItemIcon(5, icons["dc"])
+        
         self.dropdown.activated.connect(self.update_dropdown)
 
         self.arbwaveLabel = QtWidgets.QLabel("Arbitrary Wave:")
         self.dropdownArb = QComboBox()
-        for aw in self.listAW:
-            self.dropdownArb.addItem(aw.filename)
         self.dropdownArb.activated.connect(self.update_dropdownArb)
 
         grid_layout.addWidget(self.plot_widget, GUI_OFFSET + 1, 0, 9, 5)
