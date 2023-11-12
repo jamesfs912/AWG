@@ -61,9 +61,9 @@ class WaveformGenerator(QtWidgets.QWidget):
         syncNotPossible = (set[0].type == "dc" or set[1].type == "dc")
         if not(self.syncButton.isChecked()) or syncNotPossible:
             if changed == 0 or changed == -1:
-                self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = None, duty = set[0].duty, phase = set[0].phase)
+                self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = set[0].arb, duty = set[0].duty, phase = set[0].phase, )
             if changed == 1 or changed == -1:
-                self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = None, duty = set[1].duty, phase = set[1].phase)
+                self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = set[1].arb, duty = set[1].duty, phase = set[1].phase)
             if syncNotPossible:
                 self.setSyncStatus(False)
             else:
@@ -79,14 +79,14 @@ class WaveformGenerator(QtWidgets.QWidget):
                         if min == None or min[0] * min[1] > a*b:
                             min = (a, b)
             if min == None:
-                self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = None, duty = set[0].duty, phase = set[0].phase)
-                self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = None, duty = set[1].duty, phase = set[1].phase)
+                self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = set[0].arb, duty = set[0].duty, phase = set[0].phase)
+                self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = set[1].arb, duty = set[1].duty, phase = set[1].phase)
                 self.setSyncStatus(False)
             else:
                 a, b = min
                 f_comm = set[0].freq / a #same as set[1].freq / b
-                self.conn.sendWave(0, f_comm, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = None, duty = set[0].duty, phase = set[0].phase, numPeriods = a)
-                self.conn.sendWave(1, f_comm, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = None, duty = set[1].duty, phase = set[1].phase, numPeriods = b)
+                self.conn.sendWave(0, f_comm, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = set[0].arb, duty = set[0].duty, phase = set[0].phase, numPeriods = a)
+                self.conn.sendWave(1, f_comm, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = set[1].arb, duty = set[1].duty, phase = set[1].phase, numPeriods = b)
                 self.setSyncStatus(True)
     
     def __init__(self):

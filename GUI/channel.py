@@ -11,6 +11,7 @@ from PyQt6 import QtGui
 from wavegen import generateSamples
 from connection import Connection
 from input_feild import Input
+from wave_drawer import ICON_SIZE
 
 class WaveSettings():
     def __init__(self, type, freq, amp, offset =0 , duty = 50, phase = 0, arb = None):
@@ -25,8 +26,6 @@ class WaveSettings():
 class Channel:
     def update_dropdown(self):
         self.waveform_type = self.dropdown.currentText().lower()
-        print("Selected waveform type:", self.waveform_type)
-
         if (self.waveform_type == 'square'):
             self.freqInput.setEnabled(True)
             self.ampInput.setEnabled(True)
@@ -47,8 +46,9 @@ class Channel:
             self.phaseInput.setEnabled(True)
         self.generate_waveform()
 
-    def updateAWList(self, AWlist, modified = -1):
+    def updateAWList(self, AWlist, cause, modified = -1):
         last_ind = self.dropdownArb.currentIndex()
+        
         self.listAW = AWlist
         self.dropdownArb.clear()
         ind = 0
@@ -57,26 +57,18 @@ class Channel:
             if aw.icon:
                 self.dropdownArb.setItemIcon(ind, aw.icon)
             ind+=1
-        if modified != -1 and self.waveform_type == "arbitrary" and modified == last_ind:
+        
+        if cause == "mod" and last_ind != -1 and last_ind == modified:
+            self.dropdownArb.setCurrentIndex(last_ind)
             self.generate_waveform()
-        if last_ind != -1:
-            if last_ind >= ind:
-                last_ind = ind - 1
-                self.dropdownArb.setCurrentIndex(min(last_ind, ind - 1))
+        elif cause == "del" and last_ind != -1:
+            if last_ind == modified:
+                self.dropdownArb.setCurrentIndex(max(last_ind - 1, 0))
                 self.generate_waveform()
-
-
-    def update_dropdownArb(self):
-        #ind = self.dropdownArb.currentIndex()
-        #selected_aw = self.listAW[selected_index]
-        #print("Selected AW object:", selected_aw)
-        #print("Samples in selected AW:", selected_aw.samples)
-        #
-        #self.arbitrary_waveform = selected_aw.samples
-        self.generate_waveform()
-        return
-
-
+            elif last_ind > modified:
+                self.dropdownArb.setCurrentIndex(last_ind - 1)
+        elif last_ind != -1:
+            self.dropdownArb.setCurrentIndex(last_ind)
 
     def setRunningStatus(self, status):
         self.running = status
@@ -93,41 +85,17 @@ class Channel:
     def generate_waveform(self):
         if not self.initDone:
             return
-            
-        print("gw")
         
         tr = 1 / self.freqInput.value
         if self.dropdownArb.currentIndex() != -1:
             arbitrary_waveform = self.listAW[self.dropdownArb.currentIndex()].samples
         else:
             arbitrary_waveform = None
-        #arbitrary scaling n stuff for arbitrary
-        #if self.waveform_type == 'arbitrary':
-        #    y_values = self.arbitrary_waveform
-        #
-        #    amplitude = self.ampInput.value
-        #    offset = self.offsetInput.value
-        #    phase = self.phaseInput.value / 360  # Convert phase to a fraction
-        #
-        #
-        #    phase_shift = int(phase * len(y_values))  
-        #    scaled_y_values = [(y * amplitude) + offset for y in np.roll(y_values, phase_shift)]
-        #
-        #    time_array = np.arange(len(scaled_y_values))
-        #    self.plot_data.setData(time_array, scaled_y_values)
-        #    self.plot_widget.setXRange(0, len(y_values))
-        #
-        #else:
+
         samples = generateSamples(self.waveform_type, 1000 if self.waveform_type != "arbitrary" else 4096, self.ampInput.value, arbitrary_waveform, self.dutyInput.value, self.phaseInput.value / 360, offset = self.offsetInput.value, timeRange = tr, clamp = [-10, 10])
 
-        #samples = generateSamples(self.waveform_type, 1024, self.ampInput.value, None, 
-        #                          self.dutyInput.value, self.phaseInput.value / 360, 
-        #                          offset=self.offsetInput.value, timeRange=tr, clamp=[-10, 10])
         self.plot_data.setData(samples[0], samples[1])
         self.plot_widget.setXRange(0, tr)
-
-             
-        
         self.plot_widget.setLabel('left', text='', units='V')
         self.plot_widget.setLabel('bottom', text='', units= 's')
         
@@ -237,7 +205,8 @@ class Channel:
 
         self.arbwaveLabel = QtWidgets.QLabel("Arbitrary Wave:")
         self.dropdownArb = QComboBox()
-        self.dropdownArb.activated.connect(self.update_dropdownArb)
+        self.dropdownArb.activated.connect(self.generate_waveform)
+        self.dropdownArb.view().setIconSize(QtCore.QSize(ICON_SIZE,ICON_SIZE))
 
         grid_layout.addWidget(self.plot_widget, GUI_OFFSET + 1, 0, 9, 5)
         grid_layout.addWidget(self.clabel, GUI_OFFSET + 1, 5, 1, 1)

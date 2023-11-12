@@ -7,9 +7,10 @@ from wavegen import generateSamples, resample, sample
 import numpy as np
 import math
 from random import random
-from PyQt6 import QtGui
+from PyQt6 import QtGui, QtCore
 
 SAMPLE_POINTS = 1024*4
+ICON_SIZE = 64
 
 class AW:
     def __init__(self, name, samples):
@@ -20,7 +21,7 @@ class AW:
             self.samples = [0] * SAMPLE_POINTS
         self.genIcon()
             
-    def lineDraw(self, map, size, x1, y1, x2, y2):   
+    def lineDraw(self, map, x1, y1, x2, y2):   
         dx = x2 - x1
         dy = y2 - y1
         if abs(dx) > abs(dy):
@@ -36,26 +37,25 @@ class AW:
             y1 = y1 + yincrement
             brush = 1
             _x = int(max(x1 - brush, 0))
-            while _x < min(x1 + 1 + brush, size - 1):
+            while _x < min(x1 + 1 + brush, ICON_SIZE - 1):
                 _y = int(max(y1 - brush, 0))
-                while _y < min(y1 + 1 + brush, size - 1):
-                    map[(_y * size + _x) * 3 + 0] = 0
-                    map[(_y * size + _x) * 3 + 1] = 255
-                    map[(_y * size + _x) * 3 + 2] = 255
+                while _y < min(y1 + 1 + brush, ICON_SIZE - 1):
+                    map[(_y * ICON_SIZE + _x) * 3 + 0] = 0
+                    map[(_y * ICON_SIZE + _x) * 3 + 1] = 255
+                    map[(_y * ICON_SIZE + _x) * 3 + 2] = 255
                     _y += 1
                 _x += 1
                 
     def genIcon(self):
-        size = 32
-        map =  [255]*(size*size * 3)
+        map =  [255]*(ICON_SIZE*ICON_SIZE * 3)
         last = None
-        for x in range(size):
-            y = -sample(self.samples, x / size) * size / 2+ size / 2
-            y = max(min(y, size - 1), 0)
+        for x in range(ICON_SIZE):
+            y = -sample(self.samples, x / ICON_SIZE) * ICON_SIZE / 2+ ICON_SIZE / 2
+            y = max(min(y, ICON_SIZE - 1), 0)
             if last:
-                self.lineDraw(map, size, last[0], last[1], x, y)
+                self.lineDraw(map, last[0], last[1], x, y)
             last = (x, y)
-        self.icon = QtGui.QIcon(QtGui.QPixmap(QtGui.QImage(bytes(map), size, size,   QtGui.QImage.Format.Format_RGB888)))
+        self.icon = QtGui.QIcon(QtGui.QPixmap(QtGui.QImage(bytes(map), ICON_SIZE, ICON_SIZE,   QtGui.QImage.Format.Format_RGB888)))
         return
             
 class MyPlotWidget(pg.PlotWidget):
@@ -173,7 +173,8 @@ class AppWindow(QtWidgets.QWidget):
         
         self.stored_waves = QComboBox(self)
         self.stored_waves.currentIndexChanged.connect(self.dropDownIndexChanged)
-        
+        self.stored_waves.view().setIconSize(QtCore.QSize(ICON_SIZE,ICON_SIZE))
+
         self.dropdown = QComboBox(self)
         self.dropdown.addItem('DC')
         self.dropdown.addItem('Sine')
@@ -237,18 +238,18 @@ class AppWindow(QtWidgets.QWidget):
         self.pl.setSamples(self.listAW[ind].samples.copy())
 
     def nameEditDone(self):
-        print(self.nameEdit.text())
         self.listAW[self.stored_waves.currentIndex()].name = self.nameEdit.text()
         self.updateDropDown()
 
     def saveFunction(self):
         self.listAW[self.stored_waves.currentIndex()].samples = self.pl.valuesY.copy()
         self.listAW[self.stored_waves.currentIndex()].genIcon()
-        for c in self.chans:
-            c.updateAWList(self.listAW, modified = self.stored_waves.currentIndex())
-        self.saveFile()
+        #for c in self.chans:
+        #    c.updateAWList(self.listAW, )
+        #self.saveFile()
+        self.updateDropDown(cause = "mod", modified = self.stored_waves.currentIndex())
         
-    def updateDropDown(self):
+    def updateDropDown(self, cause = "", modified = -1):
         ind = self.stored_waves.currentIndex()
         self.stored_waves.clear()
         i = 0
@@ -262,7 +263,7 @@ class AppWindow(QtWidgets.QWidget):
         if l > 0 and ind != -1:
             self.stored_waves.setCurrentIndex(min(ind, l - 1))
         for c in self.chans:
-            c.updateAWList(self.listAW)
+            c.updateAWList(self.listAW, cause, modified)
         self.saveFile()
     
     def saveFile(self):   
@@ -314,4 +315,4 @@ class AppWindow(QtWidgets.QWidget):
     def delButtonClicked(self):
         ind = self.stored_waves.currentIndex()
         del self.listAW[ind]
-        self.updateDropDown()
+        self.updateDropDown(cause = "del",  modified = ind)
