@@ -14,6 +14,7 @@ ICON_SIZE = 64
 
 class AW:
     def __init__(self, name, samples):
+        """Creates an arbritary wave with the given name and samples."""
         self.name = name
         self.samples = samples
         self.icon = None
@@ -22,6 +23,9 @@ class AW:
         self.genIcon()
             
     def lineDraw(self, map, x1, y1, x2, y2):   
+        """
+        Draws a line on the given map from (x1, y1) to (x2, y2).
+        """
         dx = x2 - x1
         dy = y2 - y1
         if abs(dx) > abs(dy):
@@ -47,6 +51,9 @@ class AW:
                 _x += 1
                 
     def genIcon(self):
+        """
+        Generates an icon for the wave.
+        """
         map =  [255]*(ICON_SIZE*ICON_SIZE * 3)
         last = None
         for x in range(ICON_SIZE):
@@ -98,6 +105,9 @@ class MyPlotWidget(pg.PlotWidget):
         self.updateGraph()
 
     def mousePressEvent(self, event: QMouseEvent):
+        """
+        Handles the mouse press event for the wave drawer..
+        """
         if event.button().name == 'LeftButton':
             pos = self.plotItem.vb.mapSceneToView(event.position())
             
@@ -106,12 +116,18 @@ class MyPlotWidget(pg.PlotWidget):
             self.am_drawing = True
 
     def mouseReleaseEvent(self, event: QMouseEvent):
+        """
+        Handles the mouse release event for the wave drawer.
+        """
         if event.button().name == 'LeftButton' and self.am_drawing:
             pos = self.plotItem.vb.mapSceneToView(event.position())
             self.movedPen(pos)
             self.am_drawing = False
             
     def mouseMoveEvent(self, event: QMouseEvent):
+        """
+        Handles the mouse move event for the wave drawer.
+        """
         if self.am_drawing:
             pos = self.plotItem.vb.mapSceneToView(event.position())
             self.movedPen(pos)
@@ -148,10 +164,22 @@ class MyPlotWidget(pg.PlotWidget):
         self.updateGraph()
 
     def setSamples(self, samples):
+        """
+        Sets the list of samples to the given list.
+
+        Parameters:
+            samples (list): The list of samples
+        """
         self.valuesY = samples
         self.updateGraph()
 
     def return_samples(self):
+        """
+        Returns the list of samples.
+        
+        Returns:
+            list: The list of samples
+        """
         temp = []
         for i in range(0, len(self.valuesX)):
             temp.append(self.valuesY[i])
@@ -160,6 +188,12 @@ class MyPlotWidget(pg.PlotWidget):
 class AppWindow(QtWidgets.QWidget):
 
     def __init__(self, chans):
+        """
+        Initializes the wave drawer window with the given channels. 
+        
+        Parameters:
+            chans (list): The list of channels to update when a wave is modified
+        """
         super(AppWindow, self).__init__()
 
         self.chans = chans
@@ -242,6 +276,9 @@ class AppWindow(QtWidgets.QWidget):
         self.updateDropDown()
 
     def saveFunction(self):
+        """
+        Saves the current wave to the list and generates an icon for it.
+        """
         self.listAW[self.stored_waves.currentIndex()].samples = self.pl.valuesY.copy()
         self.listAW[self.stored_waves.currentIndex()].genIcon()
         #for c in self.chans:
@@ -250,6 +287,13 @@ class AppWindow(QtWidgets.QWidget):
         self.updateDropDown(cause = "mod", modified = self.stored_waves.currentIndex())
         
     def updateDropDown(self, cause = "", modified = -1):
+        """
+        Updates the drop down list of waves.
+
+        Parameters:
+            cause (str): The cause of the update, can be "mod" for modified, "del" for deleted or "" for other
+            modified (int): The index of the modified wave, -1 if no wave was modified
+        """
         ind = self.stored_waves.currentIndex()
         self.stored_waves.clear()
         i = 0
@@ -278,12 +322,31 @@ class AppWindow(QtWidgets.QWidget):
                 f.write("\n") 
                 
     def nameUsed(self, name):
+        """
+        Checks if the name is already used
+
+        Parameters:
+            name (str): The name to check
+
+        Returns:
+            bool: True if the name is already used, False otherwise
+        """
         for aw in self.listAW:
             if aw.name == name:
                 return True
         return False
         
     def addWave(self, name = None, arr = None):
+        """
+        Adds a new wave to the list.
+
+        Parameters:
+            name (str): The name of the wave. If None, a default name is used
+            arr (list): The list of samples. If None, a default list is used
+
+        Returns:
+            None
+        """
         if name == None:
             num = 0
             while True:
@@ -295,6 +358,15 @@ class AppWindow(QtWidgets.QWidget):
         self.listAW.append(AW(name, arr))
         
     def loadFile(self):
+        """
+        Loads the saved waves from the file, if there are no saved waves, a default wave is added.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         if os.path.exists("saved.txt"):
         # Check if saved.txt exists and create it if it doesn't
         #    with open("saved.txt", "w") as f: #this would end up being done later
@@ -313,6 +385,15 @@ class AppWindow(QtWidgets.QWidget):
         self.updateDropDown()
             
     def delButtonClicked(self):
+        """
+        Deletes the currently selected wave.
+
+        Parameters:
+            None
+        
+        Returns:
+            None
+        """
         ind = self.stored_waves.currentIndex()
         del self.listAW[ind]
         self.updateDropDown(cause = "del",  modified = ind)
