@@ -2,9 +2,30 @@ import numpy as np
 from math import floor
 
 def lerp(a, b, f):
+    """
+    Performs linear interpolation between two values a and b.
+
+    Parameters:
+    a (float): The start value.
+    b (float): The end value.
+    f (float): The interpolation factor between 0 and 1, where 0 yields `a` and 1 yields `b`.
+
+    Returns:
+    float: The interpolated value between `a` and `b`.
+    """
     return a * (1 - f) + (b * f)
 
 def resample(samples, newNumSamples):
+    """
+    Resamples a sequence of data points to a new number of samples.
+
+    Parameters:
+    samples (list of float): The original sequence of sample points.
+    newNumSamples (int): The desired number of sample points in the resampled sequence.
+
+    Returns:
+    list of float: The resampled sequence of sample points.
+    """
     if len(samples) == newNumSamples:
         return samples
     values = []
@@ -19,6 +40,19 @@ def resample(samples, newNumSamples):
     return values
         
 def sample(samples, x):
+    """Performs linear interpolation on a list of sample points.
+
+    Given a floating-point index `x`, this function calculates the interpolated
+    value using the fractional part of `x` to blend between the nearest sample
+    points.
+
+    Parameters:
+    samples (list of float): The list of sample points to interpolate between.
+    x (float): A floating-point index into the `samples` list.
+
+    Returns:
+    float: The interpolated value from the `samples` list at the index `x`.
+    """
     x *= len(samples)
     ind = floor(x)
     ind2 = (ind + 1) % len(samples)
@@ -27,7 +61,22 @@ def sample(samples, x):
     
 def generateSamples(wavetype="sine", numSamples=1024, amplitude=5, arbitrary_waveform=None, duty=50, phase=0, offset=0,
                     timeRange=1, clamp=None, numT = 1):
-                    
+    """Generates a waveform of the given type and parameters.
+    
+    Parameters:
+    wavetype (str): Type of the waveform to generate, defaults to "sine".
+    numSamples (int): Number of samples to generate, defaults to 1024.
+    amplitude (float): The peak amplitude of the waveform, defaults to 5.
+    arbitrary_waveform (callable or None): A user-defined function for arbitrary waveforms, defaults to None.
+    duty (int): Duty cycle for square waves, defaults to 50 percent.
+    phase (float): Phase shift for the waveform, defaults to 0.
+    timeRange (float): The time range over which to generate the waveform, defaults to 1.
+    clamp (function or None): An optional function to clamp values, defaults to None.
+    numT (int): Number of periods to generate, defaults to 1.
+    
+    Returns:
+        Tuple of (time, voltage)
+    """
     t = np.linspace(0, numT, numSamples, endpoint=False)
     tt = t   
     phase = float(phase)

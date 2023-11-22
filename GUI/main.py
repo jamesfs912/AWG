@@ -35,6 +35,7 @@ class WaveformGenerator(QtWidgets.QWidget):
     statusCallbackSignal = pyqtSignal(str, str)
 
     def statusCallback(self, status, message):
+        """ Callback function for the serial connection. Updates the status label and enables/disables the connect button."""
         self.status_label.setText("Status: " + status)
         self.connectButton.setEnabled(status == "disconnected")
         if message:
@@ -45,10 +46,12 @@ class WaveformGenerator(QtWidgets.QWidget):
                 c.setRunningStatus(False)
 
     def connectButtonClicked(self):
+        """ Function called when the connect button is clicked. Attempts to connect to the device."""
         self.connectButton.setEnabled(False)
         self.conn.tryConnect()
        
     def setSyncStatus(self, status):
+        """ Sets the sync status of the device."""
         if status:
             self.synced_status.setText("Synced")
             self.synced_status.setStyleSheet("color : green")
@@ -57,6 +60,11 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.synced_status.setStyleSheet("color : red")
     
     def updateWave(self, changed = -1):
+        """ Updates the waveforms on the device.
+        
+        Parameters:
+        changed (int): The channel that was changed. If -1, both channels are updated.
+        """
         set = [self.channels[0].waveSettings, self.channels[1].waveSettings]
         syncNotPossible = (set[0].type == "dc" or set[1].type == "dc")
         if not(self.syncButton.isChecked()) or syncNotPossible:
@@ -90,6 +98,7 @@ class WaveformGenerator(QtWidgets.QWidget):
                 self.setSyncStatus(True)
     
     def __init__(self):
+        """ Initializes the window."""
         super().__init__()
 
         self.setWindowTitle('Waveform Generator')
@@ -161,12 +170,15 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.defaultTheme()
 
     def fun_open_drawer(self):
+        """ Function called when the drawer button is clicked. Opens the drawer window."""
         drawer_window.show()
         
     def closeEvent(self, event):
+        """ Function called when the window is closed. Closes the serial connection."""
         self.conn.close()
 
     def defaultTheme(self):
+        """ Sets the theme to default."""
         if platform.system() != "Darwin":
             app.setStyleSheet("")
         else:
@@ -195,6 +207,7 @@ class WaveformGenerator(QtWidgets.QWidget):
                 }""")
 
     def lightMode(self):
+        """ Sets the theme to light mode."""
         app.setStyleSheet("""
             QWidget {
                 font-family: 'Verdana', sans-serif;
@@ -244,6 +257,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         pass
 
     def darkMode(self):
+        """ Sets the theme to dark mode."""
         app.setStyleSheet("""
             QWidget {
                 font-family: 'Verdana', sans-serif; 
@@ -321,6 +335,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         pass
 
 if __name__ == '__main__':
+    """ Main function that runs the program."""
     app = QtWidgets.QApplication(sys.argv)
     waveform_generator = WaveformGenerator()
 

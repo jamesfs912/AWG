@@ -15,6 +15,7 @@ from wave_drawer import ICON_SIZE
 
 class WaveSettings():
     def __init__(self, type, freq, amp, offset =0 , duty = 50, phase = 0, arb = None):
+        """ Initializes the WaveSettings class."""
         self.type = type
         self.freq = freq
         self.amp = amp
@@ -25,6 +26,7 @@ class WaveSettings():
 
 class Channel:
     def update_dropdown(self):
+        """ Updates the GUI based on the selected waveform type."""
         self.waveform_type = self.dropdown.currentText().lower()
         if (self.waveform_type == 'square'):
             self.freqInput.setEnabled(True)
@@ -47,6 +49,13 @@ class Channel:
         self.generate_waveform()
 
     def updateAWList(self, AWlist, cause, modified = -1):
+        """ Updates the list of arbitrary waveforms in the GUI.
+        
+        Parameters:
+        AWlist (list): The list of arbitrary waveforms.
+        cause (str): The cause of the update, either "mod" or "del".
+        modified (int): The index of the modified waveform, defaults to -1.
+        """
         last_ind = self.dropdownArb.currentIndex()
         
         self.listAW = AWlist
@@ -71,6 +80,11 @@ class Channel:
             self.dropdownArb.setCurrentIndex(last_ind)
 
     def setRunningStatus(self, status):
+        """ Sets the running status of the channel and then generates the waveform.
+        
+        Parameters:
+        status (bool): The new running status.
+        """
         self.running = status
         if self.running:
             self.run_stop.setText("Stop")
@@ -83,6 +97,7 @@ class Channel:
         self.generate_waveform()
         
     def generate_waveform(self):
+        """ Generates the waveform based on the current settings."""
         if not self.initDone:
             return
         
@@ -122,10 +137,12 @@ class Channel:
 
 
     def enableUpdates(self):
+        """ Enables updates to the waveform."""
         self.allowUpdates = True
         self.updateWave(self.chan_num)
 
     def __init__(self, chan_num, grid_layout, icons, updateWave):
+        """Initializes the channel."""
         self.icons = icons
         self.chan_num = chan_num
         self.updateWave = updateWave

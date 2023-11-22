@@ -323,7 +323,7 @@ class AppWindow(QtWidgets.QWidget):
                 
     def nameUsed(self, name):
         """
-        Checks if the name is already used
+        Checks if the name is already used.
 
         Parameters:
             name (str): The name to check

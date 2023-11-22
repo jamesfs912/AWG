@@ -11,6 +11,9 @@ import time
 class Connection:
         
     def sendHandShakePacket(self):
+        """ Sends a handshake packet to the device.
+        
+        This function should be called when the device is first connected to."""
         if self.status == "disconnected":
             return
         bytes = pack("B4B59x", 0, ord('I'), ord('N'), ord('I'), ord('T'))
@@ -18,12 +21,18 @@ class Connection:
         self.sendQ.put(bytes)
         
     def read_disconnect(self, msg):
+        """ Disconnects the device and emits a disconnected signal.
+        
+        Parameters:
+        msg (str): The reason for the disconnect.
+        """
         if self.status != "disconnected":
             self.status = "disconnected"
             self.statusCallback.emit("disconnected", msg)
             self.ser.close()
                     
     def read_funct(self):
+        """ The function that runs in the read thread. This function reads data from the serial port and emits signals when the device is connected or disconnected."""
         timeouts = 0
         while self.status != "disconnected":
             try:
@@ -54,6 +63,7 @@ class Connection:
         self.sendQ.put(None)
             
     def write_funct(self):
+        """ The function that runs in the write thread. This function writes data to the serial port."""
         while self.status != "disconnected":
             packet = self.sendQ.get()
             if packet:
@@ -63,6 +73,7 @@ class Connection:
                     pass
         
     def close(self):
+        """ Disconnects the device."""
         if self.status != "disconnected":
             self.status = "disconnected"
             self.ser.close()
@@ -96,6 +107,19 @@ class Connection:
         
         
     def sendWave(self, chan, freq = 1e3, wave_type = "sin", amplitude = 5, offset = 0, arbitrary_waveform = None, duty = 50, phase = 0, numPeriods = 1):
+        """ Sends a waveform to the device.
+        
+        Parameters:
+        chan (int): The channel to send the waveform to.
+        freq (float): The frequency of the waveform.
+        wave_type (str): The type of waveform to send.
+        amplitude (float): The amplitude of the waveform.
+        offset (float): The offset of the waveform.
+        arbitrary_waveform (callable or None): A user-defined function for arbitrary waveforms, defaults to None.
+        duty (int): Duty cycle for square waves, defaults to 50 percent.
+        phase (float): Phase shift for the waveform, defaults to 0.
+        numPeriods (int): Number of periods to generate, defaults to 1.
+        """
         if self.status == "disconnected":
             return
     
@@ -148,6 +172,7 @@ class Connection:
         self.sendQ.put(bytes)
         
     def tryConnect(self):
+        """ Attempts to connect to the device."""
         if self.status != "disconnected":
             return
             
@@ -185,5 +210,6 @@ class Connection:
         self.read_thread.start()
         
     def __init__(self, statusCallback):
+        """ Initializes the connection object, setting it as disconnected."""
         self.status = "disconnected"
         self.statusCallback = statusCallback
