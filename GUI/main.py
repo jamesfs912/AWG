@@ -27,31 +27,50 @@ if platform.system() == "Windows":
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """Get absolute path to resource, works for dev and for PyInstaller 
+    
+    Parameters:
+    relative_path (str): relative path to requested resource
+    
+    Returns:
+    absolute path to resource that can be used when running standalone or with pyinstaller
+    """
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
         
 class WaveformGenerator(QtWidgets.QWidget):
-    statusCallbackSignal = pyqtSignal(str, str)
-
+    """Handles the main window for the waveform generator application """
+    
+    statusCallbackSignal = pyqtSignal(str, str) 
+    """Used to pass signals about connection updates between different threads """
+    
     def statusCallback(self, status, message):
-        """ Callback function for the serial connection. Updates the status label and enables/disables the connect button."""
+        """Callback function for the serial connection. Updates the status label and enables/disables the connect button.
+        
+        Parameters:
+        status (str): The new status of the connection
+        message (str): if not null, a popup with this message will be shown
+        """
         self.status_label.setText("Status: " + status)
         self.connectButton.setEnabled(status == "disconnected")
         if message:
             pg.QtWidgets.QMessageBox.critical(self, 'Error', message)
         if status == "connected":
+            #reset channels to off when connected
             for c in self.channels:
-                print(c.chan_num)
                 c.setRunningStatus(False)
 
     def connectButtonClicked(self):
-        """ Function called when the connect button is clicked. Attempts to connect to the device."""
+        """Function called when the connect button is clicked. Attempts to connect to the device."""
         self.connectButton.setEnabled(False)
         self.conn.tryConnect()
        
     def setSyncStatus(self, status):
-        """ Sets the sync status of the device."""
+        """ Updates the sync status UI
+        
+        Parameters:
+        status (bool): True/False depending on if sync is enabled
+        """
         if status:
             self.synced_status.setText("Synced")
             self.synced_status.setStyleSheet("color : green")
@@ -60,37 +79,42 @@ class WaveformGenerator(QtWidgets.QWidget):
             self.synced_status.setStyleSheet("color : red")
     
     def updateWave(self, changed = -1):
-        """ Updates the waveforms on the device.
+        """ Called when a channel changed a wave or when the sync setting is changed. Takes the waves settings and sends them to connection
         
         Parameters:
-        changed (int): The channel that was changed. If -1, both channels are updated.
+        changed (int): Indicates the channel (0 or 1) that was changed. -1 indicates both channels need to be updates (due to change of sync settings)
         """
         set = [self.channels[0].waveSettings, self.channels[1].waveSettings]
         syncNotPossible = (set[0].type == "dc" or set[1].type == "dc")
+        #the user doesn't want sync or sync is not possible
         if not(self.syncButton.isChecked()) or syncNotPossible:
+            #updates waves
             if changed == 0 or changed == -1:
                 self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = set[0].arb, duty = set[0].duty, phase = set[0].phase, )
             if changed == 1 or changed == -1:
                 self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = set[1].arb, duty = set[1].duty, phase = set[1].phase)
+                
             if syncNotPossible:
                 self.setSyncStatus(False)
-            else:
+            else: #check if there is sync
                 ns0, arr0, psc0 = self.conn.calc_val(set[0].freq)
                 ns1, arr1, psc1 = self.conn.calc_val(set[1].freq)
                 synced = (ns1 * (arr1 + 1) * (psc1 + 1)) / (ns0 * (arr0 + 1) * (psc0 + 1)) == (set[0].freq / set[1].freq)
                 self.setSyncStatus(synced)
+        #user wants sync
         else:
+            #find multiple of frequencies
             min = None
             for a in range(1, 101):
                 for b in range(1, 101):
                     if a/b == set[0].freq / set[1].freq:
                         if min == None or min[0] * min[1] > a*b:
                             min = (a, b)
-            if min == None:
+            if min == None: #sync is still not possible
                 self.conn.sendWave(0, freq = set[0].freq, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = set[0].arb, duty = set[0].duty, phase = set[0].phase)
                 self.conn.sendWave(1, freq = set[1].freq, wave_type = set[1].type, amplitude = set[1].amp, offset = set[1].offset, arbitrary_waveform = set[1].arb, duty = set[1].duty, phase = set[1].phase)
                 self.setSyncStatus(False)
-            else:
+            else:  #send synchronous waves
                 a, b = min
                 f_comm = set[0].freq / a #same as set[1].freq / b
                 self.conn.sendWave(0, f_comm, wave_type = set[0].type, amplitude = set[0].amp, offset = set[0].offset, arbitrary_waveform = set[0].arb, duty = set[0].duty, phase = set[0].phase, numPeriods = a)
@@ -103,8 +127,10 @@ class WaveformGenerator(QtWidgets.QWidget):
 
         self.setWindowTitle('Waveform Generator')
         
+        #uses grid layout, should be replaced with a hierarchy of vertical/horizontal layouts
         self.grid_layout = QtWidgets.QGridLayout()
         
+        #load the icons for file types and more
         self.setWindowIcon(QtGui.QIcon(resource_path("icon/icon.ico")))
         icons = {}
         for x in ["run", "stop", "sine", "tri", "saw", "square", "arb", "dc"]:
@@ -114,7 +140,6 @@ class WaveformGenerator(QtWidgets.QWidget):
         
         self.synced_status = QtWidgets.QLabel("")
         self.grid_layout.addWidget(self.synced_status, 0, 5, 1, 1)
-        #self.synced_status.setPixmap(stop_icon.pixmap())
         self.setSyncStatus(False)
         
         self.syncButton = QtWidgets.QCheckBox  ("Force Sync")
@@ -125,12 +150,15 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.grid_layout.addWidget(self.open_drawer, 0, 1)
         self.open_drawer.clicked.connect(self.fun_open_drawer)
  
+        #init connection object
         self.statusCallbackSignal.connect(self.statusCallback)
         self.conn = Connection(self.statusCallbackSignal)
  
+        #init channel objects
         self.channels = []
         for i in range(2):
             self.channels += [Channel(i, self.grid_layout, icons, self.updateWave)]
+        #this must be done AFTER both channels are created otherwise updateWave() will be called while the second channel is still not initialized
         for c in self.channels:
             c.enableUpdates()
             
@@ -160,6 +188,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         themeLayout.addWidget(self.themeDropdown)
         self.grid_layout.addLayout(themeLayout, 19, 2, 1, 1)
 
+        #set grid scaling
         for i in range(1, 7):
             self.grid_layout.setColumnStretch(i, 1)
         for i in range(0, 19):

@@ -5,7 +5,7 @@ def findBestPrefix(val, prefixes):
     
     Parameters:
     val (float): The value to find the best prefix for.
-    prefixes (dict of str to float): The dictionary of prefixes to search through.
+    prefixes (dict of str:int): dictionary holding prefixes (m for milli, k for kilo, etc) mapped to their value.
     
     Returns: 
     (float, str): The value with the best prefix, and the prefix itself."""
@@ -15,16 +15,23 @@ def findBestPrefix(val, prefixes):
             return (n_val, p)
     return (val, "")
             
-def endsWithLower(str, str2):
-    """ Checks if a string ends with another string, ignoring case."""
-    return str[-len(str2):].lower() == str2.lower()
+def endsWithLower(s, endsWithStr):
+    """ Checks if a string ends with another string, ignoring case.
+    
+    Parameters:
+    s (str): the string to test
+    endsWithStr (str):  the ending
+    
+    Returns: boolean
+    """
+    return s[-len(endsWithStr):].lower() == endsWithStr.lower()
         
 def parseStringToVal(str_in, prefixes, expected_unit):
     """ Parses a string into a value.
     
     Parameters:
     str_in (str): The string to parse.
-    prefixes (dict of str to float): The dictionary of prefixes to search through.
+    prefixes (dict of str:int): dictionary holding prefixes (m for milli, k for kilo, etc) mapped to their value.
     expected_unit (str): The expected unit of the value.
     
     Returns:
@@ -48,7 +55,7 @@ def parseStringToVal(str_in, prefixes, expected_unit):
         
     return val * mag
     
-def fixRange(val, minVal, maxVal):
+def clamp(val, minVal, maxVal):
     """Clamps a value to a given range.
     
     Parameters:
@@ -62,8 +69,10 @@ def fixRange(val, minVal, maxVal):
     return float(min(maxVal, max(minVal, val)))
         
 class Input(QLineEdit):
+    """Handles a text input box with automatic range clamping, unit display, scrolling"""
+
     def editFin(self):
-        """Function called when the user has finished editing the text box. If no valid value is entered, the text box is reset to the previous value."""
+        """Function called when the user has finished editing the text box. If invalid value is entered, the text box is reset to the previous value."""
         val = parseStringToVal(self.text(), self.prefixes, self.def_unit)
         if val is None:
             self.undo()
@@ -71,7 +80,7 @@ class Input(QLineEdit):
             self.setVal(val)
             
     def keyPressEvent(self, event):
-        """Function called when a key is pressed while the text box is selected. If the up or down arrow keys are pressed, the value is incremented or decremented by 1, respectively.
+        """Event handler for key input. If the up or down arrow keys are pressed, the value is incremented or decremented by 1, respectively.
 
         Parameters:
         event (QKeyEvent): The key event that was triggered.
@@ -84,6 +93,11 @@ class Input(QLineEdit):
             QLineEdit.keyPressEvent(self, event)
             
     def wheelEvent(self, event):
+        """Event handler for mouse scrolling. The value is incremented or decremented based on the scroll direction.
+        
+        Parameters:
+        event (QKeyEvent): The key event that was triggered.
+        """
         self.setVal(self.value + event.angleDelta().y() / 120)
         event.accept()
             
@@ -94,7 +108,7 @@ class Input(QLineEdit):
         val (float): The value to set the text box to.
         runCallback (bool): Whether or not to run the callback function after setting the value, defaults to True.
         """
-        val = fixRange(val, self.range[0], self.range[1])
+        val = clamp(val, self.range[0], self.range[1])
         self.value = val
         val, prefix = findBestPrefix(val, self.prefixes)
         self.setText(f"{val} {prefix}{self.def_unit}")
@@ -102,6 +116,17 @@ class Input(QLineEdit):
             self.callback_update()
         
     def __init__(self, callback_update, range, init_val, def_unit, prefixes = [], *args, **kwargs):
+        """Initializes the object
+        
+        Parameters:
+        callback_update (funct): function to call when the value is changed
+        range (tuple (float, float)): a tuple holding the min and max values the input value can be.
+        init_val (float): the initial value of the input box
+        def_unit (str): the unit symbol (such as "v" or "hz")
+        prefixes (dict of str:int): dictionary holding prefixes (m for milli, k for kilo, etc) mapped to their value.
+        *args: extra args
+        **kwargs: extra args
+        """
         QLineEdit.__init__(self, *args, **kwargs)
         self.editingFinished.connect(self.editFin)
         self.callback_update = callback_update

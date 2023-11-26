@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 from PyQt6 import QtGui
 from wavegen import generateSamples
 from connection import Connection
-from input_feild import Input
+from input_field import Input
 from wave_drawer import ICON_SIZE
 
 class WaveSettings():
