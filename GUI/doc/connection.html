@@ -47,27 +47,30 @@
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
 <td colspan=2><tt><a href="#Connection">Connection</a>(statusCallback)<br>
 &nbsp;<br>
-<br>&nbsp;</tt></td></tr>
+Handles&nbsp;the&nbsp;connection&nbsp;to&nbsp;the&nbsp;AWG&nbsp;device<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Connection-__init__"><strong>__init__</strong></a>(self, statusCallback)</dt><dd><tt>Initializes&nbsp;the&nbsp;connection&nbsp;<a href="builtins.html#object">object</a>,&nbsp;setting&nbsp;it&nbsp;as&nbsp;disconnected.</tt></dd></dl>
+<dl><dt><a name="Connection-__init__"><strong>__init__</strong></a>(self, statusCallback)</dt><dd><tt>Initializes&nbsp;the&nbsp;connection&nbsp;<a href="builtins.html#object">object</a><br>
+&nbsp;<br>
+Parameters:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;statusCallback&nbsp;(pySignal):&nbsp;signal&nbsp;to&nbsp;use&nbsp;to&nbsp;send&nbsp;updates&nbsp;to&nbsp;the&nbsp;main&nbsp;UI</tt></dd></dl>
 
-<dl><dt><a name="Connection-calc_val"><strong>calc_val</strong></a>(self, freq)</dt></dl>
+<dl><dt><a name="Connection-calc_val"><strong>calc_val</strong></a>(self, freq)</dt><dd><tt>Dynamically&nbsp;picks&nbsp;the&nbsp;best&nbsp;numSamples&nbsp;value,&nbsp;and&nbsp;corresponding&nbsp;values&nbsp;for&nbsp;the&nbsp;ARR/PSC&nbsp;registers.</tt></dd></dl>
 
-<dl><dt><a name="Connection-close"><strong>close</strong></a>(self)</dt><dd><tt>Disconnects&nbsp;the&nbsp;device.</tt></dd></dl>
+<dl><dt><a name="Connection-close"><strong>close</strong></a>(self)</dt><dd><tt>Disconnects&nbsp;the&nbsp;device&nbsp;and&nbsp;indirectly&nbsp;shutdowns&nbsp;the&nbsp;read/write&nbsp;threads.</tt></dd></dl>
 
-<dl><dt><a name="Connection-getSkips"><strong>getSkips</strong></a>(self, freq, numSamples, fclk)</dt></dl>
+<dl><dt><a name="Connection-getSkips"><strong>getSkips</strong></a>(self, freq, numSamples, fclk)</dt><dd><tt>Calculates&nbsp;the&nbsp;sample&nbsp;period&nbsp;in&nbsp;clock&nbsp;cycles&nbsp;for&nbsp;a&nbsp;given&nbsp;frequency,&nbsp;sample&nbsp;number,&nbsp;and&nbsp;MCU&nbsp;clock&nbsp;speed</tt></dd></dl>
 
-<dl><dt><a name="Connection-read_disconnect"><strong>read_disconnect</strong></a>(self, msg)</dt><dd><tt>Disconnects&nbsp;the&nbsp;device&nbsp;and&nbsp;emits&nbsp;a&nbsp;disconnected&nbsp;signal.<br>
+<dl><dt><a name="Connection-read_disconnect"><strong>read_disconnect</strong></a>(self, msg)</dt><dd><tt>Disconnects&nbsp;the&nbsp;device&nbsp;and&nbsp;emits&nbsp;a&nbsp;disconnected&nbsp;signal&nbsp;to&nbsp;the&nbsp;main&nbsp;UI.<br>
 &nbsp;<br>
 Parameters:<br>
 msg&nbsp;(str):&nbsp;The&nbsp;reason&nbsp;for&nbsp;the&nbsp;disconnect.</tt></dd></dl>
 
-<dl><dt><a name="Connection-read_funct"><strong>read_funct</strong></a>(self)</dt><dd><tt>The&nbsp;function&nbsp;that&nbsp;runs&nbsp;in&nbsp;the&nbsp;read&nbsp;thread.&nbsp;This&nbsp;function&nbsp;reads&nbsp;data&nbsp;from&nbsp;the&nbsp;serial&nbsp;port&nbsp;and&nbsp;emits&nbsp;signals&nbsp;when&nbsp;the&nbsp;device&nbsp;is&nbsp;connected&nbsp;or&nbsp;disconnected.</tt></dd></dl>
+<dl><dt><a name="Connection-read_funct"><strong>read_funct</strong></a>(self)</dt><dd><tt>The&nbsp;function&nbsp;that&nbsp;runs&nbsp;the&nbsp;read&nbsp;thread.&nbsp;This&nbsp;function&nbsp;reads&nbsp;data&nbsp;from&nbsp;the&nbsp;serial&nbsp;port.&nbsp;Detects&nbsp;acknowledgments&nbsp;and&nbsp;disconnects&nbsp;due&nbsp;to&nbsp;timeout,&nbsp;emitted&nbsp;updates&nbsp;to&nbsp;the&nbsp;main&nbsp;UI&nbsp;as&nbsp;needed.</tt></dd></dl>
 
 <dl><dt><a name="Connection-sendHandShakePacket"><strong>sendHandShakePacket</strong></a>(self)</dt><dd><tt>Sends&nbsp;a&nbsp;handshake&nbsp;packet&nbsp;to&nbsp;the&nbsp;device.<br>
 &nbsp;<br>
-This&nbsp;function&nbsp;should&nbsp;be&nbsp;called&nbsp;when&nbsp;the&nbsp;device&nbsp;is&nbsp;first&nbsp;connected&nbsp;to.</tt></dd></dl>
+This&nbsp;function&nbsp;should&nbsp;be&nbsp;called&nbsp;when&nbsp;the&nbsp;device&nbsp;is&nbsp;first&nbsp;connected&nbsp;to&nbsp;and&nbsp;during&nbsp;keep-alive.</tt></dd></dl>
 
 <dl><dt><a name="Connection-sendWave"><strong>sendWave</strong></a>(self, chan, freq=1000.0, wave_type='sin', amplitude=5, offset=0, arbitrary_waveform=None, duty=50, phase=0, numPeriods=1)</dt><dd><tt>Sends&nbsp;a&nbsp;waveform&nbsp;to&nbsp;the&nbsp;device.<br>
 &nbsp;<br>
@@ -77,16 +80,14 @@ freq&nbsp;(float):&nbsp;The&nbsp;frequency&nbsp;of&nbsp;the&nbsp;waveform.<br>
 wave_type&nbsp;(str):&nbsp;The&nbsp;type&nbsp;of&nbsp;waveform&nbsp;to&nbsp;send.<br>
 amplitude&nbsp;(float):&nbsp;The&nbsp;amplitude&nbsp;of&nbsp;the&nbsp;waveform.<br>
 offset&nbsp;(float):&nbsp;The&nbsp;offset&nbsp;of&nbsp;the&nbsp;waveform.<br>
-arbitrary_waveform&nbsp;(callable&nbsp;or&nbsp;None):&nbsp;A&nbsp;user-defined&nbsp;function&nbsp;for&nbsp;arbitrary&nbsp;waveforms,&nbsp;defaults&nbsp;to&nbsp;None.<br>
+arbitrary_waveform&nbsp;(list&nbsp;of&nbsp;float):&nbsp;A&nbsp;user-defined&nbsp;function&nbsp;for&nbsp;arbitrary&nbsp;waveforms,&nbsp;defaults&nbsp;to&nbsp;None.<br>
 duty&nbsp;(int):&nbsp;Duty&nbsp;cycle&nbsp;for&nbsp;square&nbsp;waves,&nbsp;defaults&nbsp;to&nbsp;50&nbsp;percent.<br>
 phase&nbsp;(float):&nbsp;Phase&nbsp;shift&nbsp;for&nbsp;the&nbsp;waveform,&nbsp;defaults&nbsp;to&nbsp;0.<br>
 numPeriods&nbsp;(int):&nbsp;Number&nbsp;of&nbsp;periods&nbsp;to&nbsp;generate,&nbsp;defaults&nbsp;to&nbsp;1.</tt></dd></dl>
 
 <dl><dt><a name="Connection-tryConnect"><strong>tryConnect</strong></a>(self)</dt><dd><tt>Attempts&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;device.</tt></dd></dl>
 
-<dl><dt><a name="Connection-up64"><strong>up64</strong></a>(self, bytes)</dt></dl>
-
-<dl><dt><a name="Connection-write_funct"><strong>write_funct</strong></a>(self)</dt><dd><tt>The&nbsp;function&nbsp;that&nbsp;runs&nbsp;in&nbsp;the&nbsp;write&nbsp;thread.&nbsp;This&nbsp;function&nbsp;writes&nbsp;data&nbsp;to&nbsp;the&nbsp;serial&nbsp;port.</tt></dd></dl>
+<dl><dt><a name="Connection-write_funct"><strong>write_funct</strong></a>(self)</dt><dd><tt>The&nbsp;function&nbsp;that&nbsp;runs&nbsp;the&nbsp;write&nbsp;thread.&nbsp;This&nbsp;function&nbsp;writes&nbsp;packets&nbsp;from&nbsp;the&nbsp;sendQ&nbsp;to&nbsp;the&nbsp;serial&nbsp;port.</tt></dd></dl>
 
 <hr>
 Data descriptors defined here:<br>

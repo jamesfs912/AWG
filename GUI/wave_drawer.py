@@ -10,21 +10,31 @@ from random import random
 from PyQt6 import QtGui, QtCore
 
 SAMPLE_POINTS = 1024*4
+"""Max number of samples"""
 ICON_SIZE = 64
+"""Size in pixels of the icon to represent a arbitrary wave"""
 
 class AW:
+    """Stores the arbitrary waveform's name, list of samples, and icon"""
+    
     def __init__(self, name, samples):
-        """Creates an arbritary wave with the given name and samples."""
+        """Creates an arbritary wave with the given name and samples.
+        
+        Parameters:
+            name (str): name of the wave
+            samples (list of float): the initial samples for the wave
+        """
         self.name = name
         self.samples = samples
         self.icon = None
+        #generate samples if not provided
         if self.samples == None:
             self.samples = [0] * SAMPLE_POINTS
         self.genIcon()
             
-    def lineDraw(self, map, x1, y1, x2, y2):   
+    def lineDraw(self, buffer, x1, y1, x2, y2):   
         """
-        Draws a line on the given map from (x1, y1) to (x2, y2).
+        Draws a line on the given buffer from (x1, y1) to (x2, y2) using the DDA(?) algorithm 
         """
         dx = x2 - x1
         dy = y2 - y1
@@ -44,15 +54,15 @@ class AW:
             while _x < min(x1 + 1 + brush, ICON_SIZE - 1):
                 _y = int(max(y1 - brush, 0))
                 while _y < min(y1 + 1 + brush, ICON_SIZE - 1):
-                    map[(_y * ICON_SIZE + _x) * 3 + 0] = 0
-                    map[(_y * ICON_SIZE + _x) * 3 + 1] = 255
-                    map[(_y * ICON_SIZE + _x) * 3 + 2] = 255
+                    buffer[(_y * ICON_SIZE + _x) * 3 + 0] = 0
+                    buffer[(_y * ICON_SIZE + _x) * 3 + 1] = 255
+                    buffer[(_y * ICON_SIZE + _x) * 3 + 2] = 255
                     _y += 1
                 _x += 1
                 
     def genIcon(self):
         """
-        Generates an icon for the wave.
+        Generates/updates the icon for the wave.
         """
         map =  [255]*(ICON_SIZE*ICON_SIZE * 3)
         last = None
@@ -66,8 +76,11 @@ class AW:
         return
             
 class MyPlotWidget(pg.PlotWidget):
-
+    """Handles the custum drawable plot"""
+    
     def __init__(self, **kwargs):
+        """Init"""
+        
         super().__init__(**kwargs)
         self.setMouseEnabled(x=False, y=False)
         self.setXRange(0, 1)
@@ -80,12 +93,21 @@ class MyPlotWidget(pg.PlotWidget):
         self.updateGraph()
         
     def updateGraph(self):
+        """Draw the new samples on the graph"""
+        
         self.line.setData(self.valuesX, self.valuesY)
 
     def movedPen(self, pos):
+        """Called when the pen has moved to a new position. sets the samples between the old a new position in a line. Updates the graph.
+        
+        Parameters:
+            pos: object containing the new position coordinate
+        """
+        
         newX = round(pos.x() * SAMPLE_POINTS)
         newY = pos.y()
         
+        #determine the starting location and direction/slope to fill samples in
         posX = self.lastX
         posY = self.lastY
         dirX = 1 if newX > posX else -1
@@ -94,6 +116,7 @@ class MyPlotWidget(pg.PlotWidget):
         else:
             dirY = 0
         
+        #sets samples while adjusting and y coordinate according to slope
         while posX != newX + dirX:
             if posX >= 0 and posX < SAMPLE_POINTS:
                 self.valuesY[posX] = max(min(posY, 1), -1)
@@ -106,7 +129,7 @@ class MyPlotWidget(pg.PlotWidget):
 
     def mousePressEvent(self, event: QMouseEvent):
         """
-        Handles the mouse press event for the wave drawer..
+        Handles the mouse press event for the wave drawer.
         """
         if event.button().name == 'LeftButton':
             pos = self.plotItem.vb.mapSceneToView(event.position())
@@ -135,8 +158,15 @@ class MyPlotWidget(pg.PlotWidget):
     # -"how much security vunrability do you want?"
     # -"yes"
     def generate_code(self, code):
+        """Generates a wave based on given python code.
+        
+        Parameters:
+            code (str): a peice of python code to determine a new wave
+        """
+            
         try:
             tempY = self.valuesY
+            #setup execution environment to limit the functionality the user provided code has access too
             env = {}
             env["locals"]   = None
             env["globals"]  = None
@@ -147,6 +177,7 @@ class MyPlotWidget(pg.PlotWidget):
             for funct in dir(math):
                 if funct[0] != '_':
                     env[funct] = getattr(math, funct)
+            #go through all points
             for i in range(SAMPLE_POINTS):
                 env["x"] = i / SAMPLE_POINTS
                 env["rand"] = random()*2-1 
@@ -159,13 +190,17 @@ class MyPlotWidget(pg.PlotWidget):
         self.updateGraph()
 
     def generate_preset(self, type):
+        """Generates a wave based on a preset type (sine, square, etc). Updates the graph.
+        Parameters:
+            type (str): the wave type
+        """
         res = generateSamples(wavetype=type, numSamples=SAMPLE_POINTS, amplitude=1)
         self.valuesY = res[1]
         self.updateGraph()
 
     def setSamples(self, samples):
         """
-        Sets the list of samples to the given list.
+        Sets the list of samples to the given list. Updates the graph.
 
         Parameters:
             samples (list): The list of samples
@@ -173,19 +208,8 @@ class MyPlotWidget(pg.PlotWidget):
         self.valuesY = samples
         self.updateGraph()
 
-    def return_samples(self):
-        """
-        Returns the list of samples.
-        
-        Returns:
-            list: The list of samples
-        """
-        temp = []
-        for i in range(0, len(self.valuesX)):
-            temp.append(self.valuesY[i])
-        return self.valuesY.copy()
-    
 class AppWindow(QtWidgets.QWidget):
+    """The window for the arbitrary waveform drawer"""
 
     def __init__(self, chans):
         """
@@ -266,18 +290,23 @@ class AppWindow(QtWidgets.QWidget):
         self.loadFile()
 
     def dropDownIndexChanged(self, ind):
+        """Called when the selected arb. waveform is changed. Updates the graph and name textbox based on the new selected wave.
+        
+        ind (int): the new index of the selected waveform
+        """
         if ind == -1:
             return
         self.nameEdit.setText(self.listAW[ind].name)
         self.pl.setSamples(self.listAW[ind].samples.copy())
 
     def nameEditDone(self):
+        """Called when the name of a wave is changed, updates the dropdown via updateDropDown()"""
         self.listAW[self.stored_waves.currentIndex()].name = self.nameEdit.text()
         self.updateDropDown()
 
     def saveFunction(self):
         """
-        Saves the current wave to the list and generates an icon for it.
+        Saves the current wave to the list and generates an icon for it. Updates the dropdown via updateDropDown().
         """
         self.listAW[self.stored_waves.currentIndex()].samples = self.pl.valuesY.copy()
         self.listAW[self.stored_waves.currentIndex()].genIcon()
@@ -288,13 +317,15 @@ class AppWindow(QtWidgets.QWidget):
         
     def updateDropDown(self, cause = "", modified = -1):
         """
-        Updates the drop down list of waves.
+        Updates the drop down list of waves. Calls the channel's updateAWList() to propagate the changes there.
 
         Parameters:
             cause (str): The cause of the update, can be "mod" for modified, "del" for deleted or "" for other
             modified (int): The index of the modified wave, -1 if no wave was modified
         """
         ind = self.stored_waves.currentIndex()
+        
+        #update the waves
         self.stored_waves.clear()
         i = 0
         for aw in self.listAW:
@@ -304,16 +335,21 @@ class AppWindow(QtWidgets.QWidget):
                 i += 1
         l = len(self.listAW)
         self.delWave_button.setEnabled(l > 1)
+        
+        #reset selected index
         if l > 0 and ind != -1:
             self.stored_waves.setCurrentIndex(min(ind, l - 1))
+            
+        #propagate changes to the channel
         for c in self.chans:
             c.updateAWList(self.listAW, cause, modified)
+        #save changes
         self.saveFile()
     
     def saveFile(self):   
+        """Saves the arbitrary wave list to disk"""
         with open('saved.txt', 'w') as f:  # Open in 'w' mode to overwrite the file
             for aw in self.listAW:
-                #f.write(aw.filename + ":" + str(aw.samples) + '\n')
                 f.write(aw.name + ":")
                 for i in range(len(aw.samples)):
                     f.write(str(aw.samples[i]))
@@ -368,10 +404,6 @@ class AppWindow(QtWidgets.QWidget):
             None
         """
         if os.path.exists("saved.txt"):
-        # Check if saved.txt exists and create it if it doesn't
-        #    with open("saved.txt", "w") as f: #this would end up being done later
-        #        pass
-        #else:
             with open("saved.txt", "r") as f:
                 for line in f:
                     line = line.strip()

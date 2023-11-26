@@ -106,7 +106,7 @@ class Input(QLineEdit):
         
         Parameters:
         val (float): The value to set the text box to.
-        runCallback (bool): Whether or not to run the callback function after setting the value, defaults to True.
+        runCallback (bool): Whether or not to run the callback function after setting the value, defaults to True. This can be used to update a textbox when a different textbox is updated (for example have the frequency update when period is changed and viceversa), without causing a infinite loop of updates. But currently this isn't used.
         """
         val = clamp(val, self.range[0], self.range[1])
         self.value = val
@@ -123,7 +123,7 @@ class Input(QLineEdit):
         range (tuple (float, float)): a tuple holding the min and max values the input value can be.
         init_val (float): the initial value of the input box
         def_unit (str): the unit symbol (such as "v" or "hz")
-        prefixes (dict of str:int): dictionary holding prefixes (m for milli, k for kilo, etc) mapped to their value.
+        prefixes (dict of str:float): dictionary holding prefixes (m for milli, k for kilo, etc) mapped to their value.
         *args: extra args
         **kwargs: extra args
         """

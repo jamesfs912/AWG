@@ -27,7 +27,7 @@ if platform.system() == "Windows":
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     
 def resource_path(relative_path):
-    """Get absolute path to resource, works for dev and for PyInstaller 
+    """Get absolute path to a resource, works for dev and for PyInstaller 
     
     Parameters:
     relative_path (str): relative path to requested resource
@@ -199,7 +199,7 @@ class WaveformGenerator(QtWidgets.QWidget):
         self.defaultTheme()
 
     def fun_open_drawer(self):
-        """ Function called when the drawer button is clicked. Opens the drawer window."""
+        """ Function called when the open arbitrary waveform drawer button is clicked. Opens the arbitrary waveform drawer window."""
         drawer_window.show()
         
     def closeEvent(self, event):
