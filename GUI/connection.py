@@ -154,6 +154,7 @@ class Connection:
             numSamples, ARR, PSC = self.calc_val(freq)
         #skips_act = (PSC+1)*(ARR+1)
         
+        
         #determines phase
         #this code is complicated because there are two waves of setting phase:
         #   1) shifting the samples, which has lower resolution but a full 360 deg range
@@ -161,14 +162,15 @@ class Connection:
         #we want to do both
         #PSC not being 0 makes things complicated and the functionality is not well tested for slow waves. 
         phase_clocks = numSamples * (ARR + 1) * phase
-        phase_samples = phase_clocks / (ARR + 1) / numSamples
-        phase_arr = 0
-        #ALLIGNINS CLOCK SIGNAL PHASES TDOWN TO THE CLOCK CYCLE, SEEMS TO BE RANDOM BETWEEN DEVICES AND NEEDS TO BE ADJUSTED MANUALY
-        if chan == 1:
-            phase_arr += 6 // (PSC + 1)
-        phase_arr += int(phase_clocks / (PSC + 1)) 
-        phase_arr = phase_arr % (ARR + 1)
         
+        #phase calibration, value (6) is random between devices
+        if chan == 1:
+            phase_clocks += 6 // (PSC + 1)
+        
+        phase_samples = int(phase_clocks / (ARR + 1)) / numSamples
+        phase_arr = int(phase_clocks / (PSC + 1)) 
+        phase_arr = phase_arr % (ARR + 1)
+                
         #generate the samples
         dac_scale = (2**dac_bits) / 2
         samples = generateSamples(wavetype = wave_type, numSamples = numSamples, amplitude = amplitude / gain_amp[gain] * dac_scale, arbitrary_waveform = arbitrary_waveform, duty = duty, phase = phase_samples, offset = dac_scale + offset_dac / gain_amp[gain] * dac_scale, clamp = [0, 2**dac_bits - 1], numT = numPeriods)      
